@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from contextlib import asynccontextmanager
+from asyncio import CancelledError, create_task
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,7 @@ from backend.sync import (
     get_cloud_count,
     get_pending_count,
     init_schema,
+    run_sync_loop,
     sync_pending,
 )
 
@@ -56,7 +58,14 @@ async def recall_lifespan(_: FastAPI):
     get_qdrant_client()
     _init_activities()
     init_schema()
-    yield
+    sync_task = create_task(run_sync_loop()) if os.environ.get("RECALL_SYNC_ENABLED", "true").lower() == "true" else None
+    try:
+        yield
+    finally:
+        if sync_task:
+            sync_task.cancel()
+            with suppress(CancelledError):
+                await sync_task
 
 
 app = FastAPI(title="Recall Edge API", version="0.1.0", lifespan=recall_lifespan)

@@ -39,6 +39,7 @@ Policy is code, not a probabilistic model. This makes the decision inspectable a
 - Offline mode that preserves search functionality
 - Deterministic app/type privacy classification
 - Memory version history using supersede-not-delete semantics
+- Automatic retry-safe sync loop for queued Qdrant Cloud writes
 - FastAPI endpoints for memories, activity audit records, node status, network simulation, and reset
 
 ## Run locally
