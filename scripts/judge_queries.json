@@ -1,0 +1,6 @@
+[
+  {"id":"qdrant-research","query":"What did I research about Qdrant Edge yesterday?","why":"Matches local Qdrant and offline synchronization research."},
+  {"id":"password-manager","query":"Did I use 1Password?","why":"Private memories remain locally searchable."},
+  {"id":"coding","query":"What did I work on in VS Code?","why":"Matches local API implementation activity."},
+  {"id":"sync","query":"What did I discuss about edge sync?","why":"Matches Slack project memory."}
+]
