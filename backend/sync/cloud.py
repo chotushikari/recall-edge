@@ -4,7 +4,14 @@ from __future__ import annotations
 import os
 
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, PointStruct, VectorParams
+from qdrant_client.http.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
 from backend.contracts import COLLECTION_NAME, EMBEDDING_DIM, SyncBatch, SyncResult
 from backend.qdrant_local.store import mark_synced, point_id_from_dedup
@@ -29,6 +36,17 @@ def ensure_cloud_collection(client: QdrantClient) -> None:
             collection_name=COLLECTION_NAME,
             vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
         )
+
+
+def _find_cloud_memory(client: QdrantClient, memory_id: str):
+    records, _ = client.scroll(
+        COLLECTION_NAME,
+        scroll_filter=Filter(must=[FieldCondition(key="memory_id", match=MatchValue(value=memory_id))]),
+        limit=1,
+        with_payload=True,
+        with_vectors=False,
+    )
+    return records[0] if records else None
     try:
         return client.count(COLLECTION_NAME).count
     except Exception:
@@ -44,11 +62,29 @@ def sync_pending() -> SyncResult:
     ensure_cloud_collection(client)
     for memory in batch:
         assert memory.dedup_key
+        point_id = point_id_from_dedup(memory.dedup_key)
+        existing = client.retrieve(COLLECTION_NAME, ids=[point_id], with_payload=True, with_vectors=False)
+        if existing:
+            mark_synced(memory.dedup_key)
+            mark_status(memory.dedup_key, "synced")
+            result.already_existed.append(memory.dedup_key)
+            continue
+
+        superseded = False
+        if memory.supersedes:
+            old_record = _find_cloud_memory(client, memory.supersedes)
+            if old_record:
+                client.set_payload(
+                    COLLECTION_NAME,
+                    payload={"superseded_by": memory.memory_id},
+                    points=[old_record.id],
+                )
+                superseded = True
         client.upsert(
             COLLECTION_NAME,
             [
                 PointStruct(
-                    id=point_id_from_dedup(memory.dedup_key),
+                    id=point_id,
                     vector=memory.embedding or [],
                     payload=memory.model_dump(mode="json"),
                 )
@@ -56,5 +92,5 @@ def sync_pending() -> SyncResult:
         )
         mark_synced(memory.dedup_key)
         mark_status(memory.dedup_key, "synced")
-        result.synced.append(memory.dedup_key)
+        (result.superseded_in_cloud if superseded else result.synced).append(memory.dedup_key)
     return result
