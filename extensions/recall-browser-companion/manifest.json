@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Recall Edge Browser Companion",
+  "version": "0.1.0",
+  "description": "Explicit-consent local browser activity capture for Recall Edge.",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["http://127.0.0.1:8000/*", "http://localhost:8000/*"],
+  "background": { "service_worker": "service-worker.js", "type": "module" },
+  "options_page": "options.html"
+}

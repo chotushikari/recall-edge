@@ -71,6 +71,8 @@ python scripts/run_windows_activity_collector.py
 
 Events remain in the local activity database and are visible through `GET /activities/history` and the dashboard's **Local Activity Ledger**. The collector does **not** take screenshots, read keystrokes, inspect clipboard contents, or upload activity to Qdrant Cloud. Capturing browser URLs or every open tab requires a separate browser extension with explicit permission; an active browser window title alone is not a reliable tab-history source.
 
+For explicit Chrome/Edge tab capture, load the unpacked companion in [`extensions/recall-browser-companion`](extensions/recall-browser-companion/README.md). It records non-incognito tab titles and sanitized URLs (origin + path only) to the local API, never to Qdrant Cloud.
+
 Example query:
 
 ```powershell
