@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from backend.activity_collector.windows import is_supported as windows_collector_supported
 from backend.contracts import ActivityEvent, Memory, NodeState, NodeStatus
 from backend.qdrant_local import (
     clear_memories,
@@ -56,6 +57,17 @@ class NetworkToggle(BaseModel):
 def _init_activities() -> None:
     with sqlite3.connect(ACTIVITY_DB) as connection:
         connection.execute("CREATE TABLE IF NOT EXISTS activities (event_id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+
+
+def _activity_history(start: datetime | None = None, limit: int = 500) -> list[dict[str, Any]]:
+    """Read locally stored raw activity events, newest first."""
+    _init_activities()
+    with sqlite3.connect(ACTIVITY_DB) as connection:
+        rows = connection.execute("SELECT payload FROM activities").fetchall()
+    events = [ActivityEvent.model_validate_json(row[0]).model_dump(mode="json") for row in rows]
+    if start is not None:
+        events = [event for event in events if _timestamp(event) >= start]
+    return sorted(events, key=_timestamp, reverse=True)[:limit]
 
 
 def _timestamp(value: dict[str, Any]) -> datetime:
@@ -146,6 +158,36 @@ def post_activity(event: ActivityEvent) -> dict[str, Any]:
     with sqlite3.connect(ACTIVITY_DB) as connection:
         connection.execute("INSERT OR IGNORE INTO activities (event_id, payload) VALUES (?, ?)", (event.event_id, event.model_dump_json()))
     return {"event_id": event.event_id, "stored": True}
+
+
+@app.get("/activities/history")
+def activity_history(
+    range: str = "today",
+    limit: int = Query(default=500, ge=1, le=5_000),
+) -> list[dict[str, Any]]:
+    """Return local foreground-window history; raw activity never enters cloud sync."""
+    return _activity_history(_range_start(range), limit)
+
+
+@app.delete("/activities/all")
+def clear_activities() -> dict[str, bool]:
+    """Clear all locally stored raw activity history on this device."""
+    _init_activities()
+    with sqlite3.connect(ACTIVITY_DB) as connection:
+        connection.execute("DELETE FROM activities")
+    return {"cleared": True}
+
+
+@app.get("/activities/capabilities")
+def activity_capabilities() -> dict[str, Any]:
+    """Make the platform boundary and browser-data policy visible to the UI."""
+    return {
+        "foreground_window_collector": windows_collector_supported(),
+        "browser_tabs": "requires explicit browser extension consent",
+        "screenshots": False,
+        "keystrokes": False,
+        "storage": "local only",
+    }
 
 
 @app.post("/memory/search")

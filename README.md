@@ -61,6 +61,16 @@ npm run dev
 
 Open `http://localhost:3000`. If that port is already in use, run `npm run dev -- -p 3001` and open port 3001 instead.
 
+### Windows activity ledger (opt-in)
+
+Recall Edge can record the foreground application and window title on Windows from the moment you start the collector:
+
+```powershell
+python scripts/run_windows_activity_collector.py
+```
+
+Events remain in the local activity database and are visible through `GET /activities/history` and the dashboard's **Local Activity Ledger**. The collector does **not** take screenshots, read keystrokes, inspect clipboard contents, or upload activity to Qdrant Cloud. Capturing browser URLs or every open tab requires a separate browser extension with explicit permission; an active browser window title alone is not a reliable tab-history source.
+
 Example query:
 
 ```powershell

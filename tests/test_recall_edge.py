@@ -15,6 +15,7 @@ def isolated_store(tmp_path, monkeypatch):
     monkeypatch.setenv("RECALL_NETWORK_ONLINE", "true")
     monkeypatch.delenv("RECALL_QDRANT_CLOUD_URL", raising=False)
     monkeypatch.delenv("RECALL_QDRANT_CLOUD_API_KEY", raising=False)
+    monkeypatch.setattr("backend.api.server.ACTIVITY_DB", tmp_path / "activities.db")
     reset_client()
     yield tmp_path
     reset_client()
@@ -105,3 +106,25 @@ def test_dashboard_aggregation_endpoints_use_local_memories(isolated_store, monk
     assert marker.exists()
     assert client.post("/capture/resume").json()["capturing"] is True
     assert not marker.exists()
+
+
+def test_local_activity_history_is_queryable_and_clearable(isolated_store) -> None:
+    client = TestClient(app)
+    created = client.post(
+        "/activities",
+        json={
+            "app_name": "Code",
+            "window_title": "server.py — Recall",
+            "bundle_id": "C:\\Program Files\\Microsoft VS Code\\Code.exe",
+        },
+    ).json()
+
+    history = client.get("/activities/history?range=today").json()
+    capabilities = client.get("/activities/capabilities").json()
+
+    assert history[0]["event_id"] == created["event_id"]
+    assert history[0]["window_title"] == "server.py — Recall"
+    assert capabilities["storage"] == "local only"
+    assert capabilities["browser_tabs"] == "requires explicit browser extension consent"
+    assert client.delete("/activities/all").json() == {"cleared": True}
+    assert client.get("/activities/history?range=today").json() == []
