@@ -35,11 +35,12 @@ from backend.sync import (
     run_sync_loop,
     sync_pending,
 )
+from openchronicle import paths as openchronicle_paths
 
 load_dotenv()
 
 ACTIVITY_DB = Path(".recall_activities.db")
-CAPTURE_PAUSE_MARKER = Path.home() / ".recall_pause_marker"
+CAPTURE_PAUSE_MARKER = openchronicle_paths.paused_flag()
 
 
 class SearchRequest(BaseModel):
@@ -271,18 +272,19 @@ def projects() -> list[str]:
 
 @app.get("/capture/status")
 def capture_status() -> dict[str, Any]:
-    return {"capturing": not CAPTURE_PAUSE_MARKER.exists(), "enforcement": "marker-only"}
+    return {"capturing": not CAPTURE_PAUSE_MARKER.exists(), "enforcement": "daemon"}
 
 
 @app.post("/capture/pause")
 def pause_capture() -> dict[str, Any]:
-    """Create the documented pause marker consumed by a capture-daemon integration."""
+    """Pause the OpenChronicle scheduler through its native pause marker."""
+    CAPTURE_PAUSE_MARKER.parent.mkdir(parents=True, exist_ok=True)
     CAPTURE_PAUSE_MARKER.touch()
-    return {"capturing": False, "enforcement": "marker-only"}
+    return {"capturing": False, "enforcement": "daemon"}
 
 
 @app.post("/capture/resume")
 def resume_capture() -> dict[str, Any]:
     if CAPTURE_PAUSE_MARKER.exists():
         CAPTURE_PAUSE_MARKER.unlink()
-    return {"capturing": True, "enforcement": "marker-only"}
+    return {"capturing": True, "enforcement": "daemon"}
