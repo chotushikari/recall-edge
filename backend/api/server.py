@@ -5,10 +5,11 @@ import os
 import sqlite3
 from asyncio import CancelledError, create_task
 from contextlib import asynccontextmanager, suppress
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -35,7 +36,10 @@ from backend.sync import (
     sync_pending,
 )
 
+load_dotenv()
+
 ACTIVITY_DB = Path(".recall_activities.db")
+CAPTURE_PAUSE_MARKER = Path.home() / ".recall_pause_marker"
 
 
 class SearchRequest(BaseModel):
@@ -51,6 +55,37 @@ class NetworkToggle(BaseModel):
 def _init_activities() -> None:
     with sqlite3.connect(ACTIVITY_DB) as connection:
         connection.execute("CREATE TABLE IF NOT EXISTS activities (event_id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+
+
+def _timestamp(value: dict[str, Any]) -> datetime:
+    return datetime.fromisoformat(str(value["timestamp"]).replace("Z", "+00:00"))
+
+
+def _app_name(memory: dict[str, Any]) -> str:
+    provenance = memory.get("provenance") or {}
+    return str(provenance.get("app_name") or provenance.get("bundle_id") or "Local")
+
+
+def _range_start(range_name: str) -> datetime:
+    now = datetime.now(UTC)
+    midnight = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
+    starts = {
+        "today": midnight,
+        "yesterday": midnight - timedelta(days=1),
+        "week": midnight - timedelta(days=6),
+        "month": midnight - timedelta(days=29),
+    }
+    if range_name not in starts:
+        raise HTTPException(status_code=400, detail="range must be today, yesterday, week, or month")
+    return starts[range_name]
+
+
+def _range_memories(start: datetime, end: datetime | None = None) -> list[dict[str, Any]]:
+    return [
+        memory
+        for memory in list_memories(limit=10_000)
+        if _timestamp(memory) >= start and (end is None or _timestamp(memory) < end)
+    ]
 
 
 @asynccontextmanager
@@ -162,3 +197,92 @@ def latest_sync_result() -> dict[str, Any]:
 def sync_conflicts() -> list[dict[str, object]]:
     """List cloud-version conflicts that require a human decision."""
     return get_unresolved_conflicts()
+
+
+@app.get("/daily-summary")
+def daily_summary(
+    summary_date: date | None = Query(default=None, alias="date"),  # noqa: B008
+) -> dict[str, Any]:
+    """Return a deterministic daily digest without sending activity to an LLM."""
+    target = summary_date or datetime.now(UTC).date()
+    start = datetime.combine(target, datetime.min.time(), tzinfo=UTC)
+    memories = _range_memories(start, start + timedelta(days=1))
+    counts: dict[str, int] = {}
+    for memory in memories:
+        app_name = _app_name(memory)
+        counts[app_name] = counts.get(app_name, 0) + 1
+    top_apps = [
+        {"name": name, "minutes": count * 5}
+        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:5]
+    ]
+    summary = (
+        f"No recorded memories for {target.isoformat()}."
+        if not memories
+        else f"Captured {len(memories)} memories across {len(counts)} apps on {target.isoformat()}."
+    )
+    return {"summary": summary, "top_apps": top_apps, "focus_minutes": 0, "achievements": []}
+
+
+@app.get("/app-usage")
+def app_usage(range: str = "today") -> dict[str, list[dict[str, Any]]]:
+    """Aggregate recent memory activity into an explicitly approximate time proxy."""
+    start = _range_start(range)
+    end = _range_start("today") if range == "yesterday" else None
+    counts: dict[tuple[str, str | None], int] = {}
+    for memory in _range_memories(start, end):
+        provenance = memory.get("provenance") or {}
+        key = (_app_name(memory), provenance.get("bundle_id"))
+        counts[key] = counts.get(key, 0) + 1
+    apps = [
+        {"app_name": name, "minutes": count * 5, "bundle_id": bundle_id}
+        for (name, bundle_id), count in sorted(counts.items(), key=lambda item: (-item[1], item[0][0]))[:5]
+    ]
+    return {"apps": apps}
+
+
+@app.get("/calendar-heatmap")
+def calendar_heatmap(days: int = Query(default=14, ge=1, le=31)) -> dict[str, list[dict[str, Any]]]:
+    """Return a compact recent-day activity histogram for the dashboard heatmap."""
+    today = datetime.now(UTC).date()
+    all_memories = list_memories(limit=10_000)
+    result = []
+    for offset in range(days - 1, -1, -1):
+        current = today - timedelta(days=offset)
+        result.append(
+            {
+                "date": current.isoformat(),
+                "count": sum(1 for memory in all_memories if _timestamp(memory).date() == current),
+            }
+        )
+    return {"days": result}
+
+
+@app.get("/projects")
+def projects() -> list[str]:
+    """List distinct provenance project tags available for timeline filtering."""
+    return sorted(
+        {
+            str(project)
+            for memory in list_memories(limit=10_000)
+            if (project := (memory.get("provenance") or {}).get("project"))
+        }
+    )
+
+
+@app.get("/capture/status")
+def capture_status() -> dict[str, Any]:
+    return {"capturing": not CAPTURE_PAUSE_MARKER.exists(), "enforcement": "marker-only"}
+
+
+@app.post("/capture/pause")
+def pause_capture() -> dict[str, Any]:
+    """Create the documented pause marker consumed by a capture-daemon integration."""
+    CAPTURE_PAUSE_MARKER.touch()
+    return {"capturing": False, "enforcement": "marker-only"}
+
+
+@app.post("/capture/resume")
+def resume_capture() -> dict[str, Any]:
+    if CAPTURE_PAUSE_MARKER.exists():
+        CAPTURE_PAUSE_MARKER.unlink()
+    return {"capturing": True, "enforcement": "marker-only"}

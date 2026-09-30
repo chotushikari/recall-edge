@@ -26,10 +26,10 @@ class FakeCloud:
     def scroll(self, *_args, **_kwargs):
         return ([self.old_record], None) if self.old_record else ([], None)
 
-    def set_payload(self, _collection, payload, points):
+    def set_payload(self, _collection, payload, points, **_kwargs):
         self.payload_updates.append((payload, points))
 
-    def upsert(self, _collection, points):
+    def upsert(self, _collection, points, **_kwargs):
         self.upserts.extend(points)
 
 

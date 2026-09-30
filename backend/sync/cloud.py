@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import suppress
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -40,6 +41,10 @@ def get_cloud_count() -> int:
     client = get_cloud_client()
     if client is None:
         return 0
+    try:
+        return int(client.count(COLLECTION_NAME, exact=True).count or 0)
+    except Exception:
+        return 0
 
 
 def ensure_cloud_collection(client: QdrantClient) -> None:
@@ -60,10 +65,6 @@ def _find_cloud_memory(client: QdrantClient, memory_id: str):
         with_vectors=False,
     )
     return records[0] if records else None
-    try:
-        return client.count(COLLECTION_NAME).count
-    except Exception:
-        return 0
 
 
 def sync_pending() -> SyncResult:
@@ -101,6 +102,7 @@ def sync_pending() -> SyncResult:
                     COLLECTION_NAME,
                     payload={"superseded_by": memory.memory_id},
                     points=[old_record.id],
+                    wait=True,
                 )
                 superseded = True
         client.upsert(
@@ -112,8 +114,12 @@ def sync_pending() -> SyncResult:
                     payload=memory.model_dump(mode="json"),
                 )
             ],
+            wait=True,
         )
-        mark_synced(memory.dedup_key)
+        # A stale outbox row can survive a local-store reset. The cloud write
+        # is still durable; only the absent local badge cannot update.
+        with suppress(KeyError):
+            mark_synced(memory.dedup_key)
         mark_status(memory.dedup_key, "synced")
         (result.superseded_in_cloud if superseded else result.synced).append(memory.dedup_key)
     return _remember(result)

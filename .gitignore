@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+.env
 dist/
 build/
 
@@ -25,7 +26,9 @@ resources/mac-ax-watcher
 # Local OpenChronicle data (only if symlinked into the repo for dev)
 .openchronicle/
 .qdrant_local/
+.qdrant_cloud_*/
 .recall_sync.db
+.recall_sync_cloud_*.db
 .recall_activities.db
 frontend/node_modules/
 frontend/.next/

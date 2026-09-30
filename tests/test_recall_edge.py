@@ -16,7 +16,7 @@ def isolated_store(tmp_path, monkeypatch):
     monkeypatch.delenv("RECALL_QDRANT_CLOUD_URL", raising=False)
     monkeypatch.delenv("RECALL_QDRANT_CLOUD_API_KEY", raising=False)
     reset_client()
-    yield
+    yield tmp_path
     reset_client()
 
 
@@ -77,3 +77,31 @@ def test_sync_conflicts_endpoint_exposes_review_items(isolated_store) -> None:
 
     assert response.status_code == 200
     assert response.json()[0]["memory_dedup_key"] == "edge-memory"
+
+
+def test_dashboard_aggregation_endpoints_use_local_memories(isolated_store, monkeypatch) -> None:
+    marker = isolated_store / "pause-marker"
+    monkeypatch.setattr("backend.api.server.CAPTURE_PAUSE_MARKER", marker)
+    client = TestClient(app)
+    client.post(
+        "/memories",
+        json={
+            "memory_type": "project",
+            "summary": "Edited Recall Edge architecture",
+            "embedding_text": "Implemented local Qdrant dashboard aggregation.",
+            "provenance": {"app_name": "VS Code", "bundle_id": "com.microsoft.VSCode", "project": "recall-edge"},
+        },
+    ).raise_for_status()
+
+    summary = client.get("/daily-summary").json()
+    usage = client.get("/app-usage?range=today").json()
+    heatmap = client.get("/calendar-heatmap?days=14").json()
+
+    assert summary["top_apps"] == [{"name": "VS Code", "minutes": 5}]
+    assert usage["apps"][0]["app_name"] == "VS Code"
+    assert len(heatmap["days"]) == 14
+    assert client.get("/projects").json() == ["recall-edge"]
+    assert client.post("/capture/pause").json()["capturing"] is False
+    assert marker.exists()
+    assert client.post("/capture/resume").json()["capturing"] is True
+    assert not marker.exists()
