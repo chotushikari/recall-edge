@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.server import app
 from backend.qdrant_local.client import reset_client
+from backend.sync.outbox import record_conflict
 
 
 @pytest.fixture()
@@ -68,3 +69,11 @@ def test_latest_sync_result_reports_a_manual_attempt(isolated_store) -> None:
 
     assert latest["batch_id"] == attempt["batch_id"]
     assert latest["synced"] == []
+
+
+def test_sync_conflicts_endpoint_exposes_review_items(isolated_store) -> None:
+    record_conflict("edge-memory", edge_version=2, cloud_version=3)
+    response = TestClient(app).get("/sync/conflicts")
+
+    assert response.status_code == 200
+    assert response.json()[0]["memory_dedup_key"] == "edge-memory"

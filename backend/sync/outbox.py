@@ -22,6 +22,13 @@ def init_schema() -> None:
             attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT,
             status TEXT NOT NULL DEFAULT 'pending')"""
         )
+        connection.execute(
+            """CREATE TABLE IF NOT EXISTS sync_conflicts (
+            conflict_id TEXT PRIMARY KEY, memory_dedup_key TEXT UNIQUE NOT NULL,
+            edge_version INTEGER NOT NULL, cloud_version INTEGER NOT NULL,
+            detected_at TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0,
+            resolution TEXT)"""
+        )
 
 
 def append_to_outbox(memory: Memory) -> bool:
@@ -61,3 +68,26 @@ def clear_outbox() -> None:
     init_schema()
     with sqlite3.connect(_database_path()) as connection:
         connection.execute("DELETE FROM sync_outbox")
+        connection.execute("DELETE FROM sync_conflicts")
+
+
+def record_conflict(dedup_key: str, edge_version: int, cloud_version: int) -> None:
+    """Keep a human-review record rather than overwriting a newer cloud chain."""
+    from uuid import uuid4
+
+    init_schema()
+    with sqlite3.connect(_database_path()) as connection:
+        connection.execute(
+            "INSERT OR IGNORE INTO sync_conflicts (conflict_id, memory_dedup_key, edge_version, cloud_version, detected_at) VALUES (?, ?, ?, ?, ?)",
+            (uuid4().hex, dedup_key, edge_version, cloud_version, datetime.now(UTC).isoformat()),
+        )
+
+
+def get_unresolved_conflicts() -> list[dict[str, object]]:
+    init_schema()
+    with sqlite3.connect(_database_path()) as connection:
+        rows = connection.execute(
+            "SELECT conflict_id, memory_dedup_key, edge_version, cloud_version, detected_at FROM sync_conflicts WHERE resolved = 0 ORDER BY detected_at DESC"
+        ).fetchall()
+    columns = ("conflict_id", "memory_dedup_key", "edge_version", "cloud_version", "detected_at")
+    return [dict(zip(columns, row, strict=True)) for row in rows]

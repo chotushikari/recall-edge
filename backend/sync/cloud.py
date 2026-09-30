@@ -15,7 +15,7 @@ from qdrant_client.http.models import (
 
 from backend.contracts import COLLECTION_NAME, EMBEDDING_DIM, SyncBatch, SyncResult
 from backend.qdrant_local.store import mark_synced, point_id_from_dedup
-from backend.sync.outbox import mark_status, read_batch
+from backend.sync.outbox import mark_status, read_batch, record_conflict
 
 _latest_sync_result: SyncResult | None = None
 
@@ -87,6 +87,16 @@ def sync_pending() -> SyncResult:
         if memory.supersedes:
             old_record = _find_cloud_memory(client, memory.supersedes)
             if old_record:
+                old_payload = old_record.payload or {}
+                if old_payload.get("superseded_by") not in (None, memory.memory_id):
+                    record_conflict(
+                        memory.dedup_key,
+                        edge_version=memory.version,
+                        cloud_version=int(old_payload.get("version", 1)) + 1,
+                    )
+                    mark_status(memory.dedup_key, "conflict")
+                    result.conflicts.append(memory.dedup_key)
+                    continue
                 client.set_payload(
                     COLLECTION_NAME,
                     payload={"superseded_by": memory.memory_id},

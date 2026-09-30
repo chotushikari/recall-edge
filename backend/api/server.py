@@ -29,6 +29,7 @@ from backend.sync import (
     get_cloud_count,
     get_latest_sync_result,
     get_pending_count,
+    get_unresolved_conflicts,
     init_schema,
     run_sync_loop,
     sync_pending,
@@ -155,3 +156,9 @@ def latest_sync_result() -> dict[str, Any]:
     """Expose the most recent foreground or background sync attempt."""
     result = get_latest_sync_result()
     return result.model_dump(mode="json") if result else {"attempted": False}
+
+
+@app.get("/sync/conflicts")
+def sync_conflicts() -> list[dict[str, object]]:
+    """List cloud-version conflicts that require a human decision."""
+    return get_unresolved_conflicts()

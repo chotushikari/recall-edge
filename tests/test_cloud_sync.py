@@ -81,7 +81,7 @@ def test_sync_marks_retry_as_already_existed(monkeypatch) -> None:
 def test_sync_marks_cloud_predecessor_as_superseded(monkeypatch) -> None:
     predecessor = memory("First Qdrant note")
     candidate = memory("Updated Qdrant note", supersedes=predecessor.memory_id)
-    cloud = FakeCloud(old_record=SimpleNamespace(id="old-point"))
+    cloud = FakeCloud(old_record=SimpleNamespace(id="old-point", payload={}))
     monkeypatch.setenv("RECALL_NETWORK_ONLINE", "true")
     monkeypatch.setattr("backend.sync.cloud.get_cloud_client", lambda: cloud)
     monkeypatch.setattr("backend.sync.cloud.read_batch", lambda: [candidate])
@@ -92,3 +92,27 @@ def test_sync_marks_cloud_predecessor_as_superseded(monkeypatch) -> None:
 
     assert result.superseded_in_cloud == [candidate.dedup_key]
     assert cloud.payload_updates == [({"superseded_by": candidate.memory_id}, ["old-point"])]
+
+
+def test_sync_preserves_a_newer_cloud_version_as_conflict(monkeypatch) -> None:
+    predecessor = memory("First Qdrant note")
+    candidate = memory("Conflicting Qdrant note", supersedes=predecessor.memory_id)
+    cloud = FakeCloud(
+        old_record=SimpleNamespace(
+            id="old-point",
+            payload={"version": 1, "superseded_by": "cloud-v2-memory"},
+        )
+    )
+    marked = []
+    monkeypatch.setenv("RECALL_NETWORK_ONLINE", "true")
+    monkeypatch.setattr("backend.sync.cloud.get_cloud_client", lambda: cloud)
+    monkeypatch.setattr("backend.sync.cloud.read_batch", lambda: [candidate])
+    monkeypatch.setattr("backend.sync.cloud.mark_synced", lambda _key: None)
+    monkeypatch.setattr("backend.sync.cloud.mark_status", lambda key, status: marked.append((key, status)))
+    monkeypatch.setattr("backend.sync.cloud.record_conflict", lambda *args, **kwargs: None)
+
+    result = sync_pending()
+
+    assert result.conflicts == [candidate.dedup_key]
+    assert marked == [(candidate.dedup_key, "conflict")]
+    assert not cloud.upserts
