@@ -27,6 +27,7 @@ from backend.sync import (
     append_to_outbox,
     clear_outbox,
     get_cloud_count,
+    get_latest_sync_result,
     get_pending_count,
     init_schema,
     run_sync_loop,
@@ -147,3 +148,10 @@ def toggle_network(toggle: NetworkToggle) -> dict[str, bool]:
 def run_sync_now() -> dict[str, Any]:
     """Attempt a single sync cycle; no cloud configuration leaves items queued."""
     return sync_pending().model_dump(mode="json")
+
+
+@app.get("/sync/latest-result")
+def latest_sync_result() -> dict[str, Any]:
+    """Expose the most recent foreground or background sync attempt."""
+    result = get_latest_sync_result()
+    return result.model_dump(mode="json") if result else {"attempted": False}

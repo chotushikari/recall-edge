@@ -12,6 +12,8 @@ def isolated_store(tmp_path, monkeypatch):
     monkeypatch.setenv("RECALL_QDRANT_LOCAL_PATH", str(tmp_path / "qdrant"))
     monkeypatch.setenv("RECALL_SYNC_OUTBOX_DB", str(tmp_path / "sync-outbox.db"))
     monkeypatch.setenv("RECALL_NETWORK_ONLINE", "true")
+    monkeypatch.delenv("RECALL_QDRANT_CLOUD_URL", raising=False)
+    monkeypatch.delenv("RECALL_QDRANT_CLOUD_API_KEY", raising=False)
     reset_client()
     yield
     reset_client()
@@ -47,3 +49,22 @@ def test_supersede_preserves_history_and_hides_old_version_from_search(isolated_
     assert [item["version"] for item in detail["history"]] == [1, 2]
     search = client.post("/memory/search", json={"query": "vector storage"}).json()
     assert all(result["memory_id"] != first["memory_id"] for result in search)
+
+
+def test_latest_sync_result_reports_a_manual_attempt(isolated_store) -> None:
+    client = TestClient(app)
+    client.delete("/memories/all")
+    client.post(
+        "/memories",
+        json={
+            "memory_type": "topic",
+            "summary": "Queued Qdrant sync",
+            "embedding_text": "A syncable memory waiting for Qdrant Cloud.",
+        },
+    ).raise_for_status()
+
+    attempt = client.post("/sync/run-now").json()
+    latest = client.get("/sync/latest-result").json()
+
+    assert latest["batch_id"] == attempt["batch_id"]
+    assert latest["synced"] == []

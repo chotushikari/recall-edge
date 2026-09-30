@@ -17,6 +17,19 @@ from backend.contracts import COLLECTION_NAME, EMBEDDING_DIM, SyncBatch, SyncRes
 from backend.qdrant_local.store import mark_synced, point_id_from_dedup
 from backend.sync.outbox import mark_status, read_batch
 
+_latest_sync_result: SyncResult | None = None
+
+
+def _remember(result: SyncResult) -> SyncResult:
+    global _latest_sync_result
+    _latest_sync_result = result
+    return result
+
+
+def get_latest_sync_result() -> SyncResult | None:
+    """Return the most recent sync attempt performed by this edge process."""
+    return _latest_sync_result
+
 
 def get_cloud_client() -> QdrantClient | None:
     url, api_key = os.environ.get("RECALL_QDRANT_CLOUD_URL"), os.environ.get("RECALL_QDRANT_CLOUD_API_KEY")
@@ -58,7 +71,7 @@ def sync_pending() -> SyncResult:
     result = SyncResult(batch_id=SyncBatch(node_id=os.environ.get("RECALL_NODE_ID", "edge-node-a"), memory_dedup_keys=[memory.dedup_key for memory in batch if memory.dedup_key]).batch_id)
     client = get_cloud_client()
     if not batch or client is None or os.environ.get("RECALL_NETWORK_ONLINE", "true") != "true":
-        return result
+        return _remember(result)
     ensure_cloud_collection(client)
     for memory in batch:
         assert memory.dedup_key
@@ -93,4 +106,4 @@ def sync_pending() -> SyncResult:
         mark_synced(memory.dedup_key)
         mark_status(memory.dedup_key, "synced")
         (result.superseded_in_cloud if superseded else result.synced).append(memory.dedup_key)
-    return result
+    return _remember(result)

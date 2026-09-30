@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from backend.contracts import Memory, MemoryType, PrivacyClass
-from backend.sync.cloud import sync_pending
+from backend.sync.cloud import get_latest_sync_result, sync_pending
 
 
 class FakeCloud:
@@ -60,6 +60,7 @@ def test_sync_writes_qdrant_point_and_marks_outbox(monkeypatch) -> None:
     assert len(cloud.upserts) == 1
     assert result.synced == [candidate.dedup_key]
     assert marked == [candidate.dedup_key, (candidate.dedup_key, "synced")]
+    assert get_latest_sync_result() == result
 
 
 def test_sync_marks_retry_as_already_existed(monkeypatch) -> None:
