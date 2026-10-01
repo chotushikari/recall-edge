@@ -107,6 +107,11 @@ export default function Home() {
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
   const [isPlayingFrames, setIsPlayingFrames] = useState(false);
   const [showPrivacyControls, setShowPrivacyControls] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [notePrivacy, setNotePrivacy] = useState<"private" | "syncable">(
+    "private",
+  );
   const [retentionDays, setRetentionDays] = useState("30");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -400,6 +405,36 @@ export default function Home() {
     await refresh();
     setAction(null);
   }
+  async function addMemoryNote(event: FormEvent) {
+    event.preventDefault();
+    const summary = noteText.trim();
+    if (!summary) return;
+    setAction("note");
+    const response = await fetch(`${api}/memories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        memory_type: "user",
+        summary,
+        embedding_text: summary,
+        privacy: notePrivacy,
+        provenance: { app_name: "Recall", source: "manual_note" },
+      }),
+    });
+    if (response.ok) {
+      setNoteText("");
+      setShowQuickAdd(false);
+      await refresh();
+      setNotice(
+        notePrivacy === "private"
+          ? "Private note saved locally. It was not added to the sync queue."
+          : "Syncable note saved locally and added to the optional sync queue.",
+      );
+    } else {
+      setNotice("Recall could not save that note locally.");
+    }
+    setAction(null);
+  }
   return (
     <main className="workspace-shell">
       <aside className="app-sidebar" aria-label="Recall navigation">
@@ -449,6 +484,12 @@ export default function Home() {
               {node?.status ?? "Connecting"}
             </span>
             <button
+              className="quick-add-button"
+              onClick={() => setShowQuickAdd(true)}
+            >
+              + Note
+            </button>
+            <button
               className="icon-button"
               onClick={refresh}
               disabled={loading}
@@ -458,6 +499,80 @@ export default function Home() {
             </button>
           </div>
         </header>
+        {showQuickAdd && (
+          <div className="quick-add-backdrop" role="presentation">
+            <form
+              className="quick-add-modal"
+              onSubmit={addMemoryNote}
+              aria-label="Add a manual memory note"
+            >
+              <div className="quick-add-heading">
+                <div>
+                  <p className="section-kicker">MANUAL MEMORY</p>
+                  <h2>Save a thought to Recall.</h2>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => setShowQuickAdd(false)}
+                  aria-label="Close manual memory note"
+                >
+                  x
+                </button>
+              </div>
+              <textarea
+                autoFocus
+                value={noteText}
+                onChange={(event) => setNoteText(event.target.value)}
+                placeholder="What should your computer remember?"
+                maxLength={1_000}
+              />
+              <div className="note-privacy-row">
+                <label>
+                  <input
+                    type="radio"
+                    name="note-privacy"
+                    value="private"
+                    checked={notePrivacy === "private"}
+                    onChange={() => setNotePrivacy("private")}
+                  />
+                  <span>
+                    <b>Private</b>
+                    <small>Stored only on this device</small>
+                  </span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="note-privacy"
+                    value="syncable"
+                    checked={notePrivacy === "syncable"}
+                    onChange={() => setNotePrivacy("syncable")}
+                  />
+                  <span>
+                    <b>Syncable</b>
+                    <small>Can enter the optional cloud queue</small>
+                  </span>
+                </label>
+              </div>
+              <div className="quick-add-actions">
+                <button
+                  type="button"
+                  className="quick-add-cancel"
+                  onClick={() => setShowQuickAdd(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="quick-add-save"
+                  disabled={action === "note" || !noteText.trim()}
+                >
+                  {action === "note" ? "Saving..." : "Save local memory"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
         <section className="memory-hero">
           <div>
             <p className="section-kicker">YOUR PRIVATE COMPUTER MEMORY</p>
