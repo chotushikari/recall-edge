@@ -70,13 +70,14 @@ Working now:
 - Local Qdrant semantic-memory index, offline search, version history, and an
   optional privacy-gated cloud-sync outbox.
 - A local API and dashboard, plus a one-command Windows launcher.
-- Local FTS5 support for screen-frame evidence; frame storage and OCR are ready
-  at the schema level but capture is intentionally not enabled yet.
+- Explicitly confirmed Windows primary-monitor screenshots, change detection,
+  app/window exclusions, and local frame storage.
+- Local FTS5 support for screen-frame evidence; OCR ingestion is next.
 
 Not yet claimed as complete:
 
-- Windows screen snapshots, OCR, browser URL/tab permission flow, clipboard,
-  file activity, input/AFK tracking, and audio.
+- OCR, browser URL/tab permission flow, clipboard, file activity, input/AFK
+  tracking, and audio.
 - Session reconstruction over the Windows evidence store.
 - Hybrid retrieval (time + FTS + vector + session expansion), grounded AI
   answers, and a screenshot timeline viewer.
@@ -85,8 +86,8 @@ Not yet claimed as complete:
 ## Privacy
 
 Computer memory is sensitive. Recall defaults to local storage and does not
-silently start visual capture. Before screenshots or richer signals are added,
-the runtime will require explicit opt-in and ship with:
+silently start visual capture. Screenshot capture requires an explicit start
+request with `confirm_visual_capture: true`, and it ships with:
 
 - visible recording status, global pause, and a stop/kill control;
 - application, window, website, private-window, and sensitive-content
@@ -97,9 +98,10 @@ the runtime will require explicit opt-in and ship with:
 - evidence links so a generated summary can be checked or removed with its
   source data.
 
-The current Windows collector records only the foreground app and its window
-title. It does not capture screenshots, keystrokes, clipboard contents, browser
-URLs, inactive browser tabs, or cloud-upload raw activity.
+The foreground collector records only the active app and window title. The
+separate visual runtime captures the primary display only after confirmation;
+it does not capture keystrokes, clipboard contents, browser URLs, inactive tabs,
+or cloud-upload raw activity.
 
 ## Run locally on Windows
 
@@ -123,12 +125,14 @@ Start permitted foreground-window capture through the dashboard or with
 `POST /activities/capture/start`; stop it with
 `POST /activities/capture/stop`. The normalized evidence API is available at
 `GET /evidence/events` and the raw compatibility ledger at
-`GET /activities/history`.
+`GET /activities/history`. Visual capture remains stopped until an explicit
+`POST /visual-capture/start` request includes `confirm_visual_capture: true`;
+stop it with `POST /visual-capture/stop`.
 
 ## Roadmap
 
-1. Complete the Windows event-and-evidence runtime: permissioned screenshots,
-   change detection, exclusions, retention, and deletion controls.
+1. Add retention and per-range deletion controls to the Windows
+   event-and-evidence runtime.
 2. Add local OCR, browser/file adapters, and session reconstruction.
 3. Deliver timeline and screenshot evidence views.
 4. Implement hybrid retrieval and grounded “Ask My Computer” answers.

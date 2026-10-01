@@ -189,6 +189,16 @@ class EvidenceStore:
             )
         return frame_id
 
+    def has_frame(self, *, content_hash: str, monitor: str) -> bool:
+        with self._connect() as connection:
+            return (
+                connection.execute(
+                    "SELECT 1 FROM screen_frames WHERE hash=? AND monitor=? LIMIT 1",
+                    (content_hash, monitor),
+                ).fetchone()
+                is not None
+            )
+
     def search_frames(
         self, query: str, *, start: datetime | None = None, limit: int = 50
     ) -> list[dict[str, str]]:

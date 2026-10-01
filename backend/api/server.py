@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from backend.activity_collector import LocalActivityCollector
+from backend.activity_collector.windows import foreground_activity
 from backend.activity_collector.windows import is_supported as windows_collector_supported
 from backend.contracts import ActivityEvent, Memory, NodeState, NodeStatus
 from backend.evidence_store import EvidenceStore
@@ -26,6 +27,12 @@ from backend.qdrant_local import (
     index_memory,
     list_memories,
     search_memories,
+)
+from backend.screen_capture import (
+    CapturePolicy,
+    MssScreenSource,
+    ScreenCaptureService,
+    VisualCaptureCollector,
 )
 from backend.sync import (
     append_to_outbox,
@@ -44,8 +51,10 @@ load_dotenv()
 
 ACTIVITY_DB = Path(".recall_activities.db")
 EVIDENCE_DB = Path(".recall.db")
+FRAMES_DIR = Path(".recall_frames")
 CAPTURE_PAUSE_MARKER = openchronicle_paths.paused_flag()
 ACTIVITY_COLLECTOR: LocalActivityCollector | None = None
+VISUAL_CAPTURE_COLLECTOR: VisualCaptureCollector | None = None
 
 
 class SearchRequest(BaseModel):
@@ -61,6 +70,15 @@ class NetworkToggle(BaseModel):
 class ActivityCaptureControl(BaseModel):
     interval_seconds: float = Field(default=3.0, ge=0.5, le=60.0)
     heartbeat_seconds: float = Field(default=60.0, ge=1.0, le=3_600.0)
+
+
+class VisualCaptureControl(BaseModel):
+    """Visual capture must be explicitly acknowledged for each runtime start."""
+
+    confirm_visual_capture: bool = False
+    interval_seconds: float = Field(default=15.0, ge=1.0, le=300.0)
+    excluded_applications: list[str] = Field(default_factory=list)
+    excluded_window_terms: list[str] = Field(default_factory=list)
 
 
 def _init_activities() -> None:
@@ -149,7 +167,7 @@ async def recall_lifespan(_: FastAPI):
     get_qdrant_client()
     _init_activities()
     init_schema()
-    global ACTIVITY_COLLECTOR
+    global ACTIVITY_COLLECTOR, VISUAL_CAPTURE_COLLECTOR
     ACTIVITY_COLLECTOR = LocalActivityCollector(_store_activity)
     sync_task = create_task(run_sync_loop()) if os.environ.get("RECALL_SYNC_ENABLED", "true").lower() == "true" else None
     try:
@@ -157,6 +175,9 @@ async def recall_lifespan(_: FastAPI):
     finally:
         ACTIVITY_COLLECTOR.stop()
         ACTIVITY_COLLECTOR = None
+        if VISUAL_CAPTURE_COLLECTOR is not None:
+            VISUAL_CAPTURE_COLLECTOR.stop()
+        VISUAL_CAPTURE_COLLECTOR = None
         if sync_task:
             sync_task.cancel()
             with suppress(CancelledError):
@@ -232,6 +253,16 @@ def evidence_events(
     return _evidence_store().list_events(start=start, end=end, limit=limit)
 
 
+@app.get("/evidence/frames/search")
+def evidence_frame_search(
+    query: str = Query(min_length=1),
+    start: datetime | None = None,
+    limit: int = Query(default=50, ge=1, le=500),
+) -> list[dict[str, Any]]:
+    """Search local frame titles/OCR text. Raw images remain on this device."""
+    return _evidence_store().search_frames(query, start=start, limit=limit)
+
+
 @app.get("/activities/capabilities")
 def activity_capabilities() -> dict[str, Any]:
     """Make the platform boundary and browser-data policy visible to the UI."""
@@ -266,6 +297,59 @@ def stop_activity_capture() -> dict[str, Any]:
     if ACTIVITY_COLLECTOR is not None:
         ACTIVITY_COLLECTOR.stop()
     return activity_capture_status()
+
+
+@app.get("/visual-capture/status")
+def visual_capture_status() -> dict[str, Any]:
+    return {
+        "supported": windows_collector_supported(),
+        "capturing": bool(VISUAL_CAPTURE_COLLECTOR and VISUAL_CAPTURE_COLLECTOR.running),
+        "storage": "local only",
+        "requires_explicit_confirmation": True,
+    }
+
+
+@app.post("/visual-capture/start")
+def start_visual_capture(control: VisualCaptureControl) -> dict[str, Any]:
+    """Start visual capture only after an explicit API/UI confirmation."""
+    if not control.confirm_visual_capture:
+        raise HTTPException(
+            status_code=409,
+            detail="Visual capture is disabled until confirm_visual_capture is true.",
+        )
+    if not windows_collector_supported():
+        raise HTTPException(status_code=501, detail="Visual capture is currently supported on Windows only.")
+    global VISUAL_CAPTURE_COLLECTOR
+    defaults = CapturePolicy()
+    policy = CapturePolicy(
+        excluded_applications=tuple(
+            dict.fromkeys((*defaults.excluded_applications, *control.excluded_applications))
+        ),
+        excluded_window_terms=tuple(
+            dict.fromkeys((*defaults.excluded_window_terms, *control.excluded_window_terms))
+        ),
+    )
+    service = ScreenCaptureService(
+        store=_evidence_store(),
+        frames_dir=FRAMES_DIR,
+        source=MssScreenSource(),
+        policy=policy,
+    )
+    if VISUAL_CAPTURE_COLLECTOR is None:
+        VISUAL_CAPTURE_COLLECTOR = VisualCaptureCollector(
+            service=service,
+            activity=foreground_activity,
+            is_paused=lambda: CAPTURE_PAUSE_MARKER.exists(),
+        )
+    VISUAL_CAPTURE_COLLECTOR.start(interval_seconds=control.interval_seconds)
+    return visual_capture_status()
+
+
+@app.post("/visual-capture/stop")
+def stop_visual_capture() -> dict[str, Any]:
+    if VISUAL_CAPTURE_COLLECTOR is not None:
+        VISUAL_CAPTURE_COLLECTOR.stop()
+    return visual_capture_status()
 
 
 @app.post("/memory/search")

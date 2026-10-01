@@ -137,6 +137,19 @@ def test_local_activity_history_is_queryable_and_clearable(isolated_store) -> No
     assert client.get("/activities/history?range=today").json() == []
 
 
+def test_visual_capture_requires_explicit_confirmation(isolated_store) -> None:
+    client = TestClient(app)
+
+    status = client.get("/visual-capture/status")
+    rejected = client.post("/visual-capture/start", json={"confirm_visual_capture": False})
+
+    assert status.status_code == 200
+    assert status.json()["capturing"] is False
+    assert status.json()["requires_explicit_confirmation"] is True
+    assert rejected.status_code == 409
+    assert "confirm_visual_capture" in rejected.json()["detail"]
+
+
 def test_activity_events_drive_app_usage_when_collector_data_exists(isolated_store) -> None:
     client = TestClient(app)
     now = datetime.now(UTC)
