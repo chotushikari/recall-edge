@@ -705,7 +705,13 @@ export default function Home() {
           <section className="search-drawer" aria-live="polite">
             <p className="section-kicker">RETRIEVED LOCALLY · QDRANT EDGE</p>
             {results.map((result) => (
-              <button key={result.memory_id} className="search-result">
+              <button
+                key={result.memory_id}
+                className="search-result"
+                onClick={() =>
+                  window.location.assign(`/memory/${result.memory_id}`)
+                }
+              >
                 <span
                   className={`app-chip ${appTone(result.payload.provenance?.app_name ?? "")}`}
                 >
