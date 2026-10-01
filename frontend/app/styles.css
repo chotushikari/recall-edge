@@ -855,6 +855,41 @@ input {
   gap: 7px;
   margin-top: 9px;
 }
+.frame-controls {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+  color: #857c72;
+  font-size: 0.61rem;
+  font-variant-numeric: tabular-nums;
+}
+.frame-play {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d9c9b9;
+  border-radius: 50%;
+  background: #fffdf9;
+  color: var(--orange);
+  cursor: pointer;
+  font-size: 0.68rem;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+.frame-play:hover {
+  border-color: var(--orange);
+  transform: scale(1.04);
+}
+.frame-play:active {
+  transform: scale(0.92);
+}
+.frame-controls input[type="range"] {
+  width: 100%;
+  accent-color: var(--orange);
+  cursor: pointer;
+}
 .frame-thumb {
   position: relative;
   flex: 1;

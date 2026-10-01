@@ -96,6 +96,7 @@ export default function Home() {
   const [frames, setFrames] = useState<Frame[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
+  const [isPlayingFrames, setIsPlayingFrames] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,10 +183,28 @@ export default function Home() {
     selectedFrames.find((frame) => frame.id === selectedFrameId) ??
     selectedFrames[0] ??
     null;
+  const activeFrameIndex = Math.max(
+    0,
+    selectedFrames.findIndex((frame) => frame.id === activeFrame?.id),
+  );
 
   useEffect(() => {
     setSelectedFrameId(null);
+    setIsPlayingFrames(false);
   }, [selected?.id]);
+
+  useEffect(() => {
+    if (!isPlayingFrames || selectedFrames.length < 2) return;
+    const timer = window.setInterval(() => {
+      setSelectedFrameId((current) => {
+        const currentIndex = selectedFrames.findIndex(
+          (frame) => frame.id === current,
+        );
+        return selectedFrames[(currentIndex + 1) % selectedFrames.length]?.id ?? null;
+      });
+    }, 900);
+    return () => window.clearInterval(timer);
+  }, [isPlayingFrames, selectedFrames]);
   const rangeTitle =
     range === "week"
       ? "Last 7 days"
@@ -536,6 +555,30 @@ export default function Home() {
                     </span>
                   )}
                 </div>
+                {selectedFrames.length > 1 && activeFrame && (
+                  <div className="frame-controls">
+                    <button
+                      className="frame-play"
+                      onClick={() => setIsPlayingFrames((playing) => !playing)}
+                      aria-label={isPlayingFrames ? "Pause evidence replay" : "Play evidence replay"}
+                      aria-pressed={isPlayingFrames}
+                    >
+                      {isPlayingFrames ? "Ⅱ" : "▶"}
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max={selectedFrames.length - 1}
+                      value={activeFrameIndex}
+                      onChange={(event) => {
+                        setIsPlayingFrames(false);
+                        setSelectedFrameId(selectedFrames[Number(event.target.value)]?.id ?? null);
+                      }}
+                      aria-label="Scrub through permitted session frames"
+                    />
+                    <span>{activeFrameIndex + 1} / {selectedFrames.length}</span>
+                  </div>
+                )}
                 {selectedFrames.length > 1 && (
                   <div className="frame-strip">
                     {selectedFrames.slice(0, 5).map((frame) => (
