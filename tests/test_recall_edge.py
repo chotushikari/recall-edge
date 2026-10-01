@@ -176,3 +176,24 @@ def test_activity_events_drive_app_usage_when_collector_data_exists(isolated_sto
     assert by_app["Code"]["minutes"] == 2
     assert by_app["Chrome"]["minutes"] == 2
     assert by_app["Code"]["source"] == "activity"
+
+
+def test_sessions_can_be_rebuilt_from_local_activity_evidence(isolated_store) -> None:
+    client = TestClient(app)
+    now = datetime.now(UTC)
+    for minutes_ago, app_name in [(4, "Code"), (2, "Chrome")]:
+        client.post(
+            "/activities",
+            json={
+                "timestamp": (now - timedelta(minutes=minutes_ago)).isoformat(),
+                "app_name": app_name,
+                "window_title": f"{app_name} activity",
+            },
+        ).raise_for_status()
+
+    rebuilt = client.post("/sessions/rebuild?gap_seconds=300").json()
+    sessions = client.get("/sessions").json()
+
+    assert rebuilt == {"sessions_rebuilt": 1}
+    assert sessions[0]["applications"] == ["Code", "Chrome"]
+    assert len(sessions[0]["event_ids"]) == 2

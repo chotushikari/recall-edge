@@ -6,12 +6,14 @@ events and frames that make those memories auditable and deletable.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
 from backend.contracts import ActivityEvent
+from backend.sessionizer import ReconstructedSession
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS activity_events (
@@ -61,6 +63,18 @@ CREATE VIRTUAL TABLE IF NOT EXISTS screen_frames_fts USING fts5(
     ocr_text,
     tokenize = 'unicode61 remove_diacritics 2'
 );
+
+CREATE TABLE IF NOT EXISTS activity_sessions (
+    id TEXT PRIMARY KEY,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    primary_app TEXT NOT NULL,
+    applications TEXT NOT NULL,
+    event_ids TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_activity_sessions_start ON activity_sessions(start_time);
 """
 
 _FTS_SPECIALS = set('"\':*()^+-')
@@ -225,6 +239,62 @@ class EvidenceStore:
             )
         return int(cursor.rowcount)
 
+    def save_sessions(self, sessions: list[ReconstructedSession]) -> None:
+        with self._connect() as connection:
+            connection.executemany(
+                """
+                INSERT INTO activity_sessions(
+                    id, start_time, end_time, primary_app, applications, event_ids, summary, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    start_time=excluded.start_time,
+                    end_time=excluded.end_time,
+                    primary_app=excluded.primary_app,
+                    applications=excluded.applications,
+                    event_ids=excluded.event_ids,
+                    summary=excluded.summary
+                """,
+                [
+                    (
+                        session.id,
+                        session.start_time.isoformat(),
+                        session.end_time.isoformat(),
+                        session.primary_app,
+                        json.dumps(session.applications),
+                        json.dumps(session.event_ids),
+                        session.summary,
+                        datetime.now(session.start_time.tzinfo).isoformat(),
+                    )
+                    for session in sessions
+                ],
+            )
+
+    def list_sessions(
+        self, *, start: datetime | None = None, end: datetime | None = None, limit: int = 500
+    ) -> list[dict[str, object]]:
+        clauses: list[str] = []
+        values: list[object] = []
+        if start is not None:
+            clauses.append("end_time >= ?")
+            values.append(start.isoformat())
+        if end is not None:
+            clauses.append("start_time < ?")
+            values.append(end.isoformat())
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        values.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM activity_sessions " + where + " ORDER BY start_time DESC LIMIT ?", values
+            ).fetchall()
+        return [
+            {
+                **dict(row),
+                "applications": json.loads(row["applications"]),
+                "event_ids": json.loads(row["event_ids"]),
+            }
+            for row in rows
+        ]
+
     def search_frames(
         self, query: str, *, start: datetime | None = None, limit: int = 50
     ) -> list[dict[str, str]]:
@@ -257,3 +327,4 @@ class EvidenceStore:
             connection.execute("DELETE FROM activity_events")
             connection.execute("DELETE FROM screen_frames")
             connection.execute("DELETE FROM screen_frames_fts")
+            connection.execute("DELETE FROM activity_sessions")

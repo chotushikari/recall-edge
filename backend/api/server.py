@@ -35,6 +35,7 @@ from backend.screen_capture import (
     ScreenCaptureService,
     VisualCaptureCollector,
 )
+from backend.sessionizer import build_sessions
 from backend.sync import (
     append_to_outbox,
     clear_outbox,
@@ -270,6 +271,29 @@ def evidence_frame_search(
 ) -> list[dict[str, Any]]:
     """Search local frame titles/OCR text. Raw images remain on this device."""
     return _evidence_store().search_frames(query, start=start, limit=limit)
+
+
+@app.post("/sessions/rebuild")
+def rebuild_sessions(
+    start: datetime | None = None,
+    end: datetime | None = None,
+    gap_seconds: int = Query(default=300, ge=30, le=3_600),
+) -> dict[str, int]:
+    """Reconstruct durable activity blocks from local raw evidence."""
+    store = _evidence_store()
+    sessions = build_sessions(store.list_events(start=start, end=end, limit=100_000), gap_seconds=gap_seconds)
+    store.save_sessions(sessions)
+    return {"sessions_rebuilt": len(sessions)}
+
+
+@app.get("/sessions")
+def sessions(
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = Query(default=500, ge=1, le=5_000),
+) -> list[dict[str, object]]:
+    """Return saved, evidence-linked activity sessions for the timeline."""
+    return _evidence_store().list_sessions(start=start, end=end, limit=limit)
 
 
 def _frame_retention() -> FrameRetentionService:

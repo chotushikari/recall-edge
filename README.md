@@ -74,12 +74,12 @@ Working now:
   app/window exclusions, and local frame storage.
 - Local FTS5 support for screen-frame evidence; OCR ingestion is next.
 - Explicit local frame-retention pruning and full local evidence wipe controls.
+- Deterministic activity-session reconstruction from local event sequences.
 
 Not yet claimed as complete:
 
 - OCR, browser URL/tab permission flow, clipboard, file activity, input/AFK
   tracking, and audio.
-- Session reconstruction over the Windows evidence store.
 - Hybrid retrieval (time + FTS + vector + session expansion), grounded AI
   answers, and a screenshot timeline viewer.
 - A packaged native desktop shell and the full settings/export/retention UI.
@@ -131,6 +131,10 @@ Start permitted foreground-window capture through the dashboard or with
 `POST /visual-capture/start` request includes `confirm_visual_capture: true`;
 stop it with `POST /visual-capture/stop`.
 
+Rebuild grounded activity blocks with `POST /sessions/rebuild`, then retrieve
+them from `GET /sessions`. A session records its source event IDs so timeline
+and future AI answers can link back to actual evidence.
+
 Frame retention is an explicit call to `POST /evidence/retention/prune` with a
 chosen `retention_days` value. A local-only wipe requires
 `DELETE /evidence/all` with `confirm_delete: true`; it also clears local
@@ -139,8 +143,8 @@ semantic memories but cannot erase copies already sent to an optional cloud.
 ## Roadmap
 
 1. Add per-range deletion and data export controls to the Windows runtime.
-2. Add local OCR, browser/file adapters, and session reconstruction.
-3. Deliver timeline and screenshot evidence views.
+2. Add local OCR plus browser and file adapters.
+3. Deliver timeline and screenshot evidence views over reconstructed sessions.
 4. Implement hybrid retrieval and grounded “Ask My Computer” answers.
 5. Package the runtime as a Windows desktop app before expanding to macOS and
    Linux adapters.
