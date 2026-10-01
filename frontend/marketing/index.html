@@ -3,109 +3,133 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Recall is a local-first memory layer for your personal computer."
-    />
-    <title>Recall — Your computer remembers</title>
+    <meta name="description" content="Recall is a local-first memory layer for your personal computer." />
+    <meta name="theme-color" content="#0c0f1e" />
+    <title>Recall — Memory for the moments that matter</title>
+    <link rel="icon" href="/logo-mark.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="site-shell">
-      <nav class="site-nav" aria-label="Primary navigation">
-        <a class="wordmark" href="#top"><span>r</span> recall</a>
+    <div class="cursor-halo" aria-hidden="true"></div>
+    <div class="cursor-dot" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="nav-wrap">
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="Recall home">
+          <img src="/logo-mark.svg" alt="" />
+          <span>recall</span>
+        </a>
         <div class="nav-links">
-          <a href="#how-it-works">How it works</a>
+          <a href="#memory">Memory</a>
           <a href="#privacy">Privacy</a>
-          <a href="#demo">Demo</a>
+          <a href="#how">How it works</a>
         </div>
-        <a class="nav-cta" href="#download">Get Recall</a>
+        <a class="nav-button" href="#download">Try the preview <span>↗</span></a>
       </nav>
+    </header>
 
-      <main id="top">
-        <section class="hero">
+    <main id="top">
+      <section class="hero">
+        <div class="hero-grid">
           <div class="hero-copy">
-            <p class="eyebrow"><i></i> LOCAL-FIRST COMPUTER MEMORY</p>
-            <h1>Your computer<br /><em>should remember.</em></h1>
-            <p class="hero-text">
-              Recall turns the context you choose to capture into a private,
-              searchable timeline — so you can find what you saw, did, and
-              worked on without replaying your whole day.
-            </p>
+            <p class="kicker"><span></span> A PERSONAL COMPUTER MEMORY</p>
+            <h1>Never lose the<br /><em>thread</em> again.</h1>
+            <p class="lede">Recall gives your computer a private, searchable memory of the work you choose to keep — so a forgotten tab, a half-finished task, or yesterday’s breakthrough is never really gone.</p>
             <div class="hero-actions">
-              <a class="primary-button" href="#download">Download for Windows <b>→</b></a>
-              <a class="quiet-link" href="#demo">Watch the product story <span>↗</span></a>
+              <a class="button primary" href="#download">Explore Recall <b>→</b></a>
+              <a class="text-action" href="#memory">See the memory engine <span>↓</span></a>
             </div>
-            <div class="trust-row">
-              <span><b>01</b> Explicit capture</span>
-              <span><b>02</b> Local evidence</span>
-              <span><b>03</b> Grounded recall</span>
-            </div>
-          </div>
-          <div class="hero-product" aria-label="Recall product preview">
-            <div class="product-topline"><span>r&nbsp; recall</span><span>MEMORY / TODAY</span><i>● ONLINE</i></div>
-            <div class="product-hero">
-              <p>YOUR PRIVATE COMPUTER MEMORY</p>
-              <h2>Remember the work<br /><em>behind the work.</em></h2>
-              <div class="product-stat"><span>LOCAL MEMORY ENGINE</span><b>11</b><small>indexed memories · offline capable</small></div>
-            </div>
-            <div class="memory-boundary">
-              <div><small>MEMORY BOUNDARY</small><b>Local evidence first.<br />Optional sync second.</b></div>
-              <div class="mini-metrics"><span><b>3</b>private</span><span><b>5</b>queued</span><span><b>18</b>cloud</span></div>
-            </div>
-            <div class="ask-bar"><span>⌕</span><b>Ask your computer about something you saw or did…</b><kbd>↵</kbd></div>
-            <div class="product-timeline">
-              <div><time>10:42</time><i></i><span class="chip browser">Chrome</span><b>Qdrant Edge documentation</b></div>
-              <div><time>10:51</time><i></i><span class="chip code">VS Code</span><b>Sync service implementation</b></div>
-              <div><time>11:08</time><i></i><span class="chip terminal">Terminal</span><b>Verified local memory search</b></div>
+            <div class="principles" aria-label="Product principles">
+              <div><b>LOCAL</b><span>Your evidence stays yours</span></div>
+              <div><b>GROUNDED</b><span>Every answer can show proof</span></div>
+              <div><b>OPT-IN</b><span>You choose what becomes memory</span></div>
             </div>
           </div>
-        </section>
 
-        <section class="statement-band">
-          <p>Today's computers execute your commands.</p>
-          <h2>Recall keeps the context behind them.</h2>
-        </section>
-
-        <section class="feature-intro" id="how-it-works">
-          <p class="eyebrow">A MEMORY LAYER, NOT A SCREEN RECORDER</p>
-          <div><h2>From digital experience<br />to useful context.</h2><p>Events, permitted frames, app context and time are kept together as inspectable evidence — not flattened into an opaque chatbot answer.</p></div>
-        </section>
-
-        <section class="feature-grid">
-          <article class="feature-card evidence-card"><span>01</span><h3>Evidence you can inspect</h3><p>Trace an answer back to its captured activity, app context, timestamps, and optional screen evidence.</p><div class="evidence-lines"><i></i><i></i><i></i><i></i></div></article>
-          <article class="feature-card timeline-card"><span>02</span><h3>A timeline with memory</h3><p>Turn scattered activity into sessions and sequences: browser research, code changes, and the moments in between.</p><div class="time-rail"><b>09:32</b><i></i><b>10:04</b><i></i><b>10:45</b></div></article>
-          <article class="feature-card search-card"><span>03</span><h3>Ask your computer</h3><p>Search exact text, semantic context, applications, and time ranges — with local evidence as the source of truth.</p><div class="search-pill">⌕ &nbsp; What was I doing yesterday?</div></article>
-        </section>
-
-        <section class="privacy-section" id="privacy">
-          <div class="privacy-orb"><span>r</span><i></i><i></i><i></i></div>
-          <div><p class="eyebrow">PRIVACY IS THE PRODUCT</p><h2>You decide what<br /><em>becomes memory.</em></h2><p>Recall is local-first by default. Capture is opt-in, visual capture is explicit, exclusions are supported, and you can pause, prune, export, or delete your data.</p><a href="#download">Explore the local runtime <span>→</span></a></div>
-          <ul><li><b>Local event store</b><span>Raw activity stays on-device</span></li><li><b>Private by default</b><span>Private memories never enter sync</span></li><li><b>Optional edge sync</b><span>Only eligible semantic memories queue</span></li></ul>
-        </section>
-
-        <section class="demo-section" id="demo">
-          <div><p class="eyebrow">THE TWO-MINUTE DEMO</p><h2>Show what happened.<br />Then ask why.</h2></div>
-          <ol>
-            <li><span>1</span><div><b>Use your computer normally</b><p>Recall records only the signals you permit: apps, windows, optional frames, and their time sequence.</p></div></li>
-            <li><span>2</span><div><b>Open the timeline</b><p>Inspect a visual history of the work session, including the underlying evidence.</p></div></li>
-            <li><span>3</span><div><b>Ask a grounded question</b><p>“Where did I see that Qdrant documentation?” becomes retrieved records, not a guess.</p></div></li>
-          </ol>
-        </section>
-
-        <section class="download-section" id="download">
-          <p class="eyebrow">WINDOWS 10 / 11 · LOCAL RUNTIME</p>
-          <h2>Put memory<br /><em>on your machine.</em></h2>
-          <p>Recall Desktop is designed to run locally alongside your activity. The public site never receives your timeline or captured frames.</p>
-          <div class="download-actions">
-            <a class="primary-button" href="https://github.com/chotushikari/recall-edge/archive/refs/heads/main.zip">Download Windows preview <b>→</b></a>
-            <a class="source-link" href="https://github.com/chotushikari/recall-edge">View source on GitHub ↗</a>
+          <div class="hero-stage" aria-label="Abstract 3D illustration of the Recall memory engine">
+            <div class="stage-light"></div>
+            <img class="orbit-image" src="/memory-orbit.png" alt="An abstract orbit of visual memories around a private computer memory core" />
+            <div class="orbital-label label-one"><i></i><span>YOUR DAY</span></div>
+            <div class="orbital-label label-two"><i></i><span>LOCAL ONLY</span></div>
+            <div class="guide-orb" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="stage-caption"><span>01 / 03</span><b>Memory orbit</b><small>Activity becomes a navigable constellation.</small></div>
           </div>
-          <small>The preview ZIP includes the Windows launcher. It requires Python 3.11+ and Node.js 20+; a signed native installer is the next distribution milestone.</small>
-        </section>
-      </main>
+        </div>
+        <div class="hero-strip">
+          <span>Screen context</span><i></i><span>App activity</span><i></i><span>Timeline evidence</span><i></i><span>Semantic memory</span><i></i><span>Grounded retrieval</span>
+        </div>
+      </section>
 
-      <footer><a class="wordmark" href="#top"><span>r</span> recall</a><p>Independent open-source computer memory research.</p><p>Local-first · Evidence-grounded · Privacy-controlled</p></footer>
-    </div>
+      <section class="manifesto" data-reveal>
+        <p>Computers are excellent at doing.</p>
+        <h2>They should be better at <em>remembering.</em></h2>
+        <div class="manifesto-tail">Recall is building the layer in between: one that notices permitted context, preserves its sequence, and helps you return to it with confidence.</div>
+      </section>
+
+      <section class="memory-section" id="memory">
+        <div class="section-head" data-reveal>
+          <p class="kicker"><span></span> MEMORY, NOT SURVEILLANCE</p>
+          <h2>Your day is more<br />than a list of apps.</h2>
+          <p>Recall keeps the moments around the activity: the page you were reading, the project you opened next, and the evidence that explains why it mattered.</p>
+        </div>
+        <div class="memory-board" data-reveal>
+          <aside class="board-sidebar">
+            <div class="board-brand"><img src="/logo-mark.svg" alt="" /> RECALL</div>
+            <a class="active" href="#memory"><span>◌</span> Today</a>
+            <a href="#how"><span>⌕</span> Find a moment</a>
+            <a href="#privacy"><span>◫</span> Privacy controls</a>
+            <div class="capture-state"><i></i><span>CAPTURE STATUS</span><b>PAUSE ANYTIME</b></div>
+          </aside>
+          <div class="board-main">
+            <div class="board-top"><div><small>THURSDAY / LOCAL TIMELINE</small><h3>A day you can return to.</h3></div><button class="date-pill" type="button">Today <span>⌄</span></button></div>
+            <div class="ask-field"><span>✦</span><b>Ask about a moment, a project, or something you saw…</b><kbd>↵</kbd></div>
+            <div class="board-body">
+              <div class="timeline">
+                <div class="event research"><time>10:42</time><i></i><article><span>RESEARCH · BROWSER</span><b>Mapped a private memory architecture</b><p>Read documentation, compared local semantic search paths, and collected design references.</p><small>Evidence available · 12 min</small></article></div>
+                <div class="event build"><time>11:16</time><i></i><article><span>BUILD · EDITOR</span><b>Worked on the evidence retrieval path</b><p>Moved from a research sequence into the project workspace and checked the local implementation.</p><small>Evidence available · 34 min</small></article></div>
+                <div class="event review"><time>12:03</time><i></i><article><span>REVIEW · BROWSER</span><b>Revisited the design brief</b><p>Returned to project context with the implementation and earlier references still connected.</p><small>Evidence available · 16 min</small></article></div>
+              </div>
+              <aside class="memory-card"><small>RECALL GUIDE</small><div class="small-guide"><i></i><i></i><i></i></div><h4>Pick up where you left off.</h4><p>Search by a time, app, project, or the idea you remember.</p><button type="button">What happened this morning? <span>→</span></button><em>Local-first · evidence-linked</em></aside>
+            </div>
+          </div>
+        </div>
+        <p class="mock-note">Illustrative product concept. The working Windows preview provides local evidence, capture controls, timeline sessions, and search; richer AI reconstruction is in progress.</p>
+      </section>
+
+      <section class="privacy" id="privacy">
+        <div class="privacy-copy" data-reveal><p class="kicker"><span></span> PRIVACY IS THE FEATURE</p><h2>Memory is powerful.<br /><em>Control is non-negotiable.</em></h2><p>Recall starts local. You decide when capture begins, which applications or windows are excluded, how long evidence remains, and whether derived memories ever leave your machine.</p><a class="text-action" href="#download">Read the Windows preview notes <span>↗</span></a></div>
+        <div class="privacy-art" data-reveal aria-hidden="true">
+          <div class="lock-core"><div class="lock"><i></i></div></div>
+          <div class="privacy-ring ring-a"></div><div class="privacy-ring ring-b"></div><div class="privacy-ring ring-c"></div>
+          <span class="privacy-chip chip-top">OPT-IN CAPTURE</span><span class="privacy-chip chip-left">LOCAL EVIDENCE</span><span class="privacy-chip chip-right">RETENTION CONTROL</span>
+        </div>
+        <div class="privacy-list" data-reveal><div><span>01</span><b>Visible capture status</b><p>Pause or stop without hunting through settings.</p></div><div><span>02</span><b>Built around exclusions</b><p>Block apps and windows before they become evidence.</p></div><div><span>03</span><b>Erase with intent</b><p>Prune retained frames or confirm a full local wipe.</p></div></div>
+      </section>
+
+      <section class="how" id="how">
+        <div class="how-heading" data-reveal><p class="kicker"><span></span> THE RECALL LOOP</p><h2>What happens after<br />you live your day.</h2></div>
+        <div class="loop" data-reveal>
+          <article><span>01</span><div class="loop-icon observe">◉</div><h3>Observe</h3><p>Capture only the computer context you deliberately permit.</p></article>
+          <article><span>02</span><div class="loop-icon remember">✦</div><h3>Remember</h3><p>Store events, frames, metadata, and their sequence locally.</p></article>
+          <article><span>03</span><div class="loop-icon retrieve">⌕</div><h3>Retrieve</h3><p>Find the right moment through time, text, and meaning.</p></article>
+          <article><span>04</span><div class="loop-icon verify">✓</div><h3>Verify</h3><p>Inspect the evidence before trusting the answer.</p></article>
+        </div>
+      </section>
+
+      <section class="download" id="download">
+        <div class="download-glow"></div>
+        <div data-reveal>
+          <img src="/logo-mark.svg" alt="" class="download-logo" />
+          <p class="kicker"><span></span> WINDOWS 10 / 11 PREVIEW</p>
+          <h2>Give your computer<br />a way <em>back.</em></h2>
+          <p>The local preview is open source and designed for Windows. It is a source-based preview today — not yet a signed native installer.</p>
+          <div class="download-actions"><a class="button primary" href="https://github.com/chotushikari/recall-edge/archive/refs/heads/main.zip">Download preview <b>→</b></a><a class="text-action light" href="https://github.com/chotushikari/recall-edge">View source <span>↗</span></a></div>
+          <small>Requires Python 3.11+ and Node.js 20+. Your local timeline is never sent to this marketing site.</small>
+        </div>
+      </section>
+    </main>
+    <footer><a class="brand" href="#top"><img src="/logo-mark.svg" alt="" /><span>recall</span></a><p>Independent open-source computer memory research.</p><p>Local-first · Evidence-grounded · Privacy-controlled</p></footer>
+    <script src="/main.js"></script>
   </body>
 </html>
