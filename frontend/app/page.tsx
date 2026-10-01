@@ -8,6 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { ImmersiveProductScene } from "../components/ImmersiveProductScene";
+import { ProductCursor } from "../components/ProductCursor";
 
 type Range = "today" | "yesterday" | "week";
 type NodeState = {
@@ -450,7 +452,9 @@ export default function Home() {
     window.setTimeout(() => searchInput.current?.focus(), 0);
   }
   return (
-    <main className="workspace-shell">
+    <main className="workspace-shell immersive-workspace">
+      <ProductCursor />
+      <ImmersiveProductScene />
       <aside className="app-sidebar" aria-label="Recall navigation">
         <div className="sidebar-brand">
           <span className="brand-orb">r</span>
