@@ -82,6 +82,13 @@ input {
   padding: 11px 10px;
   font-size: 0.82rem;
 }
+.privacy-nav {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
 .nav-item span {
   font-size: 1rem;
   color: #7d7972;
@@ -265,6 +272,78 @@ input {
   color: #925033;
   padding: 10px 13px;
   font-size: 0.77rem;
+}
+.privacy-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 20px;
+  align-items: end;
+  margin: 0 0 18px;
+  padding: 19px;
+  border: 1px solid #e3c9bb;
+  border-radius: 14px;
+  background: linear-gradient(110deg, #fff7f0, #fffdf9);
+  animation: rise 0.22s ease-out;
+}
+.privacy-controls h2 {
+  margin: 0;
+  color: #4e443d;
+  font-family: Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+.privacy-controls p:last-child {
+  max-width: 520px;
+  margin: 7px 0 0;
+  color: #80776c;
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+.retention-action label {
+  display: block;
+  margin-bottom: 6px;
+  color: #786e64;
+  font-size: 0.61rem;
+  font-weight: 750;
+}
+.retention-action div {
+  display: flex;
+}
+.retention-action select,
+.retention-action button,
+.wipe-button {
+  height: 31px;
+  border: 1px solid #d9c8ba;
+  background: #fffdf9;
+  color: #675f57;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+.retention-action select {
+  border-radius: 8px 0 0 8px;
+  padding: 0 7px;
+}
+.retention-action button {
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  padding: 0 10px;
+  cursor: pointer;
+}
+.wipe-button {
+  border-color: #db9d83;
+  border-radius: 8px;
+  color: #b0492b;
+  cursor: pointer;
+  padding: 0 10px;
+}
+.retention-action button:hover,
+.wipe-button:hover {
+  background: #fff1e9;
+}
+.retention-action button:disabled,
+.wipe-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 .memory-search {
   display: flex;
@@ -1185,6 +1264,10 @@ input {
   .memory-hero {
     display: block;
     padding: 39px 0 25px;
+  }
+  .privacy-controls {
+    grid-template-columns: 1fr;
+    gap: 15px;
   }
   .memory-hero h1 {
     font-size: 3.25rem;

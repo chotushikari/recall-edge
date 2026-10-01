@@ -103,6 +103,8 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
   const [isPlayingFrames, setIsPlayingFrames] = useState(false);
+  const [showPrivacyControls, setShowPrivacyControls] = useState(false);
+  const [retentionDays, setRetentionDays] = useState("30");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
@@ -310,6 +312,56 @@ export default function Home() {
     setResults(response.ok ? await response.json() : []);
     setAction(null);
   }
+  async function pruneFrames() {
+    const days = Number(retentionDays);
+    if (
+      !window.confirm(
+        `Delete local screen frames older than ${days} days? This cannot be undone.`,
+      )
+    )
+      return;
+    setAction("prune");
+    const response = await fetch(`${api}/evidence/retention/prune`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ retention_days: days }),
+    });
+    const result = response.ok ? await response.json() : null;
+    setNotice(
+      response.ok
+        ? `${result.frames_deleted} local screen frames deleted.`
+        : "Frame retention could not be applied.",
+    );
+    await refresh();
+    setAction(null);
+  }
+  async function wipeLocalEvidence() {
+    if (
+      !window.confirm(
+        "Delete all Recall evidence stored on this device? Cloud copies, if any, are not affected.",
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        "This permanently removes local events, frames, sessions, and local semantic memories. Continue?",
+      )
+    )
+      return;
+    setAction("wipe");
+    const response = await fetch(`${api}/evidence/all`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm_delete: true }),
+    });
+    setNotice(
+      response.ok
+        ? "All local Recall evidence was deleted."
+        : "Local evidence could not be deleted.",
+    );
+    await refresh();
+    setAction(null);
+  }
   return (
     <main className="workspace-shell">
       <aside className="app-sidebar" aria-label="Recall navigation">
@@ -324,9 +376,17 @@ export default function Home() {
           <span className="nav-item">
             <span>◌</span> Discover <small>soon</small>
           </span>
-          <span className="nav-item">
-            <span>⌁</span> Settings <small>soon</small>
-          </span>
+          <button
+            className={
+              showPrivacyControls
+                ? "nav-item active privacy-nav"
+                : "nav-item privacy-nav"
+            }
+            onClick={() => setShowPrivacyControls((open) => !open)}
+            aria-expanded={showPrivacyControls}
+          >
+            <span>⌁</span> Privacy
+          </button>
         </nav>
         <div className="sidebar-foot">
           <span className="secure-dot" /> Local-only by default
@@ -386,6 +446,45 @@ export default function Home() {
           <p className="notice" role="status">
             {notice}
           </p>
+        )}
+        {showPrivacyControls && (
+          <section
+            className="privacy-controls"
+            aria-label="Local privacy controls"
+          >
+            <div>
+              <p className="section-kicker">LOCAL PRIVACY CONTROLS</p>
+              <h2>Your data, your retention window.</h2>
+              <p>
+                These actions affect only evidence stored on this device. Any
+                optional cloud copy must be managed separately.
+              </p>
+            </div>
+            <div className="retention-action">
+              <label htmlFor="retention-days">Delete frames older than</label>
+              <div>
+                <select
+                  id="retention-days"
+                  value={retentionDays}
+                  onChange={(event) => setRetentionDays(event.target.value)}
+                >
+                  <option value="7">7 days</option>
+                  <option value="30">30 days</option>
+                  <option value="90">90 days</option>
+                </select>
+                <button onClick={pruneFrames} disabled={action === "prune"}>
+                  {action === "prune" ? "Pruning…" : "Apply"}
+                </button>
+              </div>
+            </div>
+            <button
+              className="wipe-button"
+              onClick={wipeLocalEvidence}
+              disabled={action === "wipe"}
+            >
+              {action === "wipe" ? "Deleting…" : "Delete all local evidence"}
+            </button>
+          </section>
         )}
         <form className="memory-search" onSubmit={search}>
           <span>⌕</span>
