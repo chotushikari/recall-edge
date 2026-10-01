@@ -1,76 +1,40 @@
 "use client";
 
-import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { ActivityHistoryPanel } from "../components/activity-history-panel";
-import { AppIcon } from "../components/app-icon";
-import { AppUsageSidebar } from "../components/app-usage-sidebar";
-import { CalendarHeatmapStrip } from "../components/calendar-heatmap-strip";
-import { DailySummaryCard } from "../components/daily-summary-card";
-import { PauseCaptureButton } from "../components/pause-capture-button";
-import { ProjectTagFilter } from "../components/project-tag-filter";
-import { QuickAddNote } from "../components/quick-add-note";
-import { TimeRangeSelector } from "../components/time-range-selector";
-
-type Range = "today" | "yesterday" | "week" | "month";
-type State = { node_id: string; status: string; local_memory_count: number; cloud_memory_count: number; pending_sync_count: number; private_count: number };
-type Memory = { memory_id: string; summary: string; privacy: string; timestamp: string; local_only: boolean; version: number; supersedes?: string; provenance?: { app_name?: string; project?: string } };
-type Result = { memory_id: string; score: number; payload: Memory };
-type SyncResult = { synced: string[]; already_existed: string[]; superseded_in_cloud: string[] };
+type Range = "today" | "yesterday" | "week";
+type NodeState = { status: string; node_id: string; local_memory_count: number };
+type CaptureState = { supported: boolean; capturing: boolean };
+type Session = { id: string; start_time: string; primary_app: string; applications: string[]; event_ids: string[]; summary: string };
+type EvidenceEvent = { id: string; timestamp_start: string; application: string; window_title?: string; url?: string | null };
+type SearchResult = { memory_id: string; payload: { summary: string; timestamp: string; provenance?: { app_name?: string } } };
 const api = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
-function rangeStart(range: Range) {
-  const date = new Date();
-  const offsets: Record<Range, number> = { today: 0, yesterday: 1, week: 6, month: 29 };
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - offsets[range]);
-  return date;
-}
+function rangeStart(range: Range) { const date = new Date(); date.setHours(0, 0, 0, 0); if (range === "yesterday") date.setDate(date.getDate() - 1); if (range === "week") date.setDate(date.getDate() - 6); return date.toISOString(); }
+function time(value: string) { return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
 
 export default function Home() {
-  const [state, setState] = useState<State | null>(null);
-  const [timeline, setTimeline] = useState<Memory[]>([]);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Result[]>([]);
-  const [range, setRange] = useState<Range>("today");
-  const [projects, setProjects] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [syncMessage, setSyncMessage] = useState("");
-  const refresh = useCallback(async () => {
-    const [nextState, memories] = await Promise.all([fetch(`${api}/node/state`).then((r) => r.json()), fetch(`${api}/memories?limit=500`).then((r) => r.json())]);
-    setState(nextState);
-    setTimeline(memories);
-  }, []);
-  useEffect(() => { refresh(); const id = window.setInterval(refresh, 5000); return () => window.clearInterval(id); }, [refresh]);
-  const visible = useMemo(() => timeline.filter((memory) => new Date(memory.timestamp) >= rangeStart(range) && (!projects.length || projects.includes(memory.provenance?.project ?? ""))), [timeline, range, projects]);
+  const [range, setRange] = useState<Range>("today"); const [node, setNode] = useState<NodeState | null>(null); const [activity, setActivity] = useState<CaptureState | null>(null); const [visual, setVisual] = useState<CaptureState | null>(null); const [sessions, setSessions] = useState<Session[]>([]); const [events, setEvents] = useState<EvidenceEvent[]>([]); const [selectedId, setSelectedId] = useState<string | null>(null); const [query, setQuery] = useState(""); const [results, setResults] = useState<SearchResult[]>([]); const [loading, setLoading] = useState(true); const [action, setAction] = useState<string | null>(null); const [notice, setNotice] = useState("");
 
-  async function search(event: FormEvent) {
-    event.preventDefault();
-    if (!query.trim()) return;
-    setBusy(true);
-    try { setResults(await fetch(`${api}/memory/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, top_k: 5 }) }).then((r) => r.json())); }
-    finally { setBusy(false); }
-  }
-  async function network(online: boolean) { await fetch(`${api}/network/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ online }) }); refresh(); }
-  async function syncNow() {
-    const response = await fetch(`${api}/sync/run-now`, { method: "POST" });
-    if (!response.ok) { setSyncMessage("Sync could not reach Qdrant Cloud. Eligible memories remain queued."); return; }
-    const result: SyncResult = await response.json();
-    const total = result.synced.length + result.already_existed.length + result.superseded_in_cloud.length;
-    setSyncMessage(total ? `Sync complete: ${result.synced.length} new, ${result.already_existed.length} already present, ${result.superseded_in_cloud.length} version updates.` : "No cloud sync completed yet. Check configuration or reconnect.");
-    refresh();
-  }
+  const refresh = useCallback(async () => { setLoading(true); try { const start = rangeStart(range); const [nextNode, nextActivity, nextVisual, nextSessions, nextEvents] = await Promise.all([fetch(`${api}/node/state`).then((r) => r.json()), fetch(`${api}/activities/capture/status`).then((r) => r.json()), fetch(`${api}/visual-capture/status`).then((r) => r.json()), fetch(`${api}/sessions?start=${encodeURIComponent(start)}&limit=100`).then((r) => r.json()), fetch(`${api}/evidence/events?start=${encodeURIComponent(start)}&limit=500`).then((r) => r.json())]); setNode(nextNode); setActivity(nextActivity); setVisual(nextVisual); setSessions(nextSessions); setEvents(nextEvents); setSelectedId((current) => current ?? nextSessions[0]?.id ?? null); } catch { setNotice("Recall could not reach the local runtime. Start Recall Desktop and refresh."); } finally { setLoading(false); } }, [range]);
+  useEffect(() => { refresh(); const interval = window.setInterval(refresh, 15_000); return () => window.clearInterval(interval); }, [refresh]);
+  const selected = sessions.find((session) => session.id === selectedId) ?? sessions[0] ?? null;
+  const selectedEvents = useMemo(() => selected ? events.filter((event) => selected.event_ids.includes(event.id)).sort((a, b) => a.timestamp_start.localeCompare(b.timestamp_start)) : [], [events, selected]);
+  async function rebuildSessions() { setAction("rebuild"); await fetch(`${api}/sessions/rebuild?start=${encodeURIComponent(rangeStart(range))}`, { method: "POST" }); setNotice("Timeline rebuilt from local evidence."); await refresh(); setAction(null); }
+  async function toggleActivity() { setAction("activity"); const endpoint = activity?.capturing ? "/activities/capture/stop" : "/activities/capture/start"; await fetch(`${api}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: endpoint.endsWith("start") ? "{}" : undefined }); await refresh(); setAction(null); }
+  async function toggleVisual() { if (!visual?.capturing && !window.confirm("Start local visual capture? Screenshots stay on this device and can be stopped or deleted anytime.")) return; setAction("visual"); const endpoint = visual?.capturing ? "/visual-capture/stop" : "/visual-capture/start"; const response = await fetch(`${api}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: endpoint.endsWith("start") ? JSON.stringify({ confirm_visual_capture: true }) : undefined }); setNotice(response.ok ? (endpoint.endsWith("start") ? "Visual capture is running locally." : "Visual capture stopped.") : "Visual capture could not be changed."); await refresh(); setAction(null); }
+  async function search(event: FormEvent) { event.preventDefault(); if (!query.trim()) return; setAction("search"); const response = await fetch(`${api}/memory/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, top_k: 5 }) }); setResults(response.ok ? await response.json() : []); setAction(null); }
 
-  return <main>
-    <header><div><p className="eyebrow">RECALL EDGE / QDRANT LOCAL</p><h1>Your activity, searchable on your device.</h1><p className="sub">Evidence-first memory with local semantic search, deterministic privacy, and optional cloud sync.</p></div><div className="mark">R</div></header>
-    <section className="status">{state ? <><div><span className={`dot ${state.status}`} /> <b>{state.status.toUpperCase()}</b><small>{state.node_id}</small></div><Metric label="LOCAL MEMORIES" value={state.local_memory_count}/><Metric label="CLOUD MEMORIES" value={state.cloud_memory_count}/><Metric label="PENDING SYNC" value={state.pending_sync_count}/><Metric label="PRIVATE / LOCAL ONLY" value={state.private_count}/></> : "Connecting..."}</section>
-    <div className="workspace">
-      <aside className="sidebar"><CalendarHeatmapStrip api={api} onPickDay={() => setRange("today")} /><DailySummaryCard api={api} date={new Date().toISOString().slice(0, 10)} /><AppUsageSidebar api={api} range={range} /><ActivityHistoryPanel api={api} range={range} /><ProjectTagFilter api={api} active={projects} onChange={setProjects} /><TimeRangeSelector value={range} onChange={setRange} /></aside>
-      <section className="content"><div className="content-top"><div><p className="eyebrow">ACTIVITY TIMELINE</p><h2>Recent memory</h2></div><QuickAddNote api={api} onCreated={refresh} /></div>{visible.length ? visible.map((memory) => <article className="memory" key={memory.memory_id}><div className="row"><AppIcon name={memory.provenance?.app_name ?? "Local"} /><span>{memory.provenance?.app_name ?? "Local"}</span><Badge kind={memory.privacy}>{memory.privacy.toUpperCase()}</Badge>{memory.supersedes && <Badge kind="version">v{memory.version} UPDATED</Badge>}</div><h3>{memory.summary}</h3><p>{new Date(memory.timestamp).toLocaleString()}</p><small className={memory.local_only ? "muted" : "cloud"}>{memory.privacy === "private" ? "Locked to this device." : memory.local_only ? "Cloud sync queued." : "Cloud sync confirmed."}</small></article>) : <p className="empty">No memories in this range.</p>}</section>
-      <section className="search"><p className="eyebrow">ASK MEMORY</p><h2>What do you want to remember?</h2><form onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="What did I research about Qdrant Edge yesterday?" /><button disabled={busy}>{busy ? "SEARCHING" : "SEARCH LOCAL MEMORY"}</button></form><div className="controls"><button onClick={() => network(false)}>GO OFFLINE</button><button onClick={() => network(true)}>RECONNECT</button><PauseCaptureButton api={api} /><button onClick={syncNow}>SYNC NOW</button></div>{syncMessage && <p className="sync-message">{syncMessage}</p>}{results.map((result) => <article className="result" key={result.memory_id}><div className="row"><AppIcon name={result.payload.provenance?.app_name ?? "Local"} /><Badge kind={result.payload.privacy}>{result.payload.privacy}</Badge><span>score {result.score.toFixed(3)}</span></div><h3>{result.payload.summary}</h3><div className="storage"><b>STORAGE</b><span>EDGE</span><span>LOCAL</span><span>OFFLINE-CAPABLE</span><span className={result.payload.local_only ? "muted" : "cloud"}>{result.payload.local_only ? "CLOUD PENDING" : "CLOUD SYNCED"}</span></div></article>)}</section>
-    </div>
+  return <main className="recall-shell">
+    <section className="command-bar"><div className="brand"><span className="brand-mark">R</span><span>RECALL</span><small>LOCAL MEMORY</small></div><div className="capture-indicators"><StatusPill active={Boolean(activity?.capturing)} label="Activity"/><StatusPill active={Boolean(visual?.capturing)} label="Visual"/><button className="quiet-button" onClick={refresh} disabled={loading}>{loading ? "Refreshing" : "Refresh"}</button></div></section>
+    <header className="memory-header"><div><p className="eyebrow">YOUR COMPUTER’S MEMORY LAYER</p><h1>Revisit the context, not just the clock.</h1><p className="lede">Recall groups permitted activity into inspectable sessions. Every timeline item opens back to the local evidence that created it.</p></div><div className="node-card"><span className={`status-light ${node?.status?.toLowerCase() === "online" ? "live" : ""}`}/><div><strong>{node?.status ?? "CONNECTING"}</strong><small>{node?.node_id ?? "Local runtime"}</small></div><b>{node?.local_memory_count ?? 0}<small>MEMORIES</small></b></div></header>
+    {notice && <p className="notice" role="status">{notice}</p>}
+    <section className="memory-grid">
+      <aside className="control-rail"><div className="rail-section"><p className="eyebrow">CAPTURE</p><CaptureControl label="Activity context" detail="Active app and window title" enabled={Boolean(activity?.capturing)} action={toggleActivity} busy={action === "activity"} supported={Boolean(activity?.supported)}/><CaptureControl label="Visual evidence" detail="Primary display · local only" enabled={Boolean(visual?.capturing)} action={toggleVisual} busy={action === "visual"} supported={Boolean(visual?.supported)}/></div><div className="rail-section"><p className="eyebrow">TIME WINDOW</p><div className="range-list">{(["today", "yesterday", "week"] as Range[]).map((item) => <button className={range === item ? "range active" : "range"} key={item} onClick={() => setRange(item)}>{item === "week" ? "Last 7 days" : item[0].toUpperCase() + item.slice(1)}</button>)}</div></div><div className="privacy-note"><span>⌁</span><p><b>Private by default</b>Raw activity and visual evidence remain on this device. Visual capture is always explicit.</p></div></aside>
+      <section className="timeline-panel"><div className="panel-heading"><div><p className="eyebrow">RECONSTRUCTED TIMELINE</p><h2>{range === "week" ? "The last seven days" : range[0].toUpperCase() + range.slice(1)}</h2></div><button className="outline-button" onClick={rebuildSessions} disabled={action === "rebuild"}>{action === "rebuild" ? "Building…" : "Rebuild from evidence"}</button></div><div className="timeline-meta"><span>{sessions.length} sessions</span><span>·</span><span>{events.length} recorded events</span><span>·</span><span>Local evidence only</span></div><div className="timeline-list">{sessions.map((session) => <button className={selected?.id === session.id ? "session-card selected" : "session-card"} onClick={() => setSelectedId(session.id)} key={session.id}><time>{time(session.start_time)}<small>{new Date(session.start_time).toLocaleDateString([], { month: "short", day: "numeric" })}</small></time><span className="timeline-line"><i/></span><span className="session-copy"><span className="app-stack">{session.applications.map((app) => <em key={app}>{app.slice(0, 1).toUpperCase()}</em>)}</span><strong>{session.summary}</strong><small>{session.event_ids.length} evidence events · Primary: {session.primary_app}</small></span></button>)}{!loading && !sessions.length && <div className="empty-state"><b>No sessions yet.</b><p>Start activity capture, use your computer normally, then rebuild the timeline.</p></div>}</div></section>
+      <aside className="evidence-panel"><div className="panel-heading"><div><p className="eyebrow">EVIDENCE INSPECTOR</p><h2>{selected ? time(selected.start_time) : "Select a session"}</h2></div>{selected && <span className="evidence-count">{selectedEvents.length}</span>}</div>{selected ? <><p className="evidence-summary">{selected.summary}</p><div className="evidence-list">{selectedEvents.map((event) => <div className="evidence-row" key={event.id}><time>{time(event.timestamp_start)}</time><span className="evidence-dot"/><div><b>{event.application}</b><p>{event.window_title || "Untitled window"}</p>{event.url && <small>{event.url}</small>}</div></div>)}</div></> : <div className="empty-state"><p>Choose a timeline session to inspect its supporting events.</p></div>}<form className="ask-box" onSubmit={search}><label htmlFor="memory-question">ASK LOCAL MEMORY</label><div><input id="memory-question" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find my Qdrant research"/><button disabled={action === "search"}>{action === "search" ? "…" : "Ask"}</button></div></form>{results.length > 0 && <div className="search-results">{results.map((result) => <div key={result.memory_id}><small>{result.payload.provenance?.app_name ?? "Local"} · {time(result.payload.timestamp)}</small><b>{result.payload.summary}</b></div>)}</div>}</aside>
+    </section>
   </main>;
 }
-
-function Badge({ children, kind }: { children: ReactNode; kind: string }) { return <span className={`badge ${kind}`}>{children}</span>; }
-function Metric({ label, value }: { label: string; value: number }) { return <div className="metric"><small>{label}</small><strong>{value}</strong></div>; }
+function StatusPill({ active, label }: { active: boolean; label: string }) { return <span className={active ? "status-pill active" : "status-pill"}><i/>{label} {active ? "on" : "off"}</span>; }
+function CaptureControl({ label, detail, enabled, action, busy, supported }: { label: string; detail: string; enabled: boolean; action: () => void; busy: boolean; supported: boolean }) { return <div className="capture-control"><div><b>{label}</b><small>{detail}</small></div><button className={enabled ? "toggle enabled" : "toggle"} onClick={action} disabled={busy || !supported} aria-pressed={enabled}><i/></button></div>; }
