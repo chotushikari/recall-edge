@@ -115,6 +115,16 @@ app-style window:
 python scripts/launch_recall_edge.py
 ```
 
+Before a demo or deployment rehearsal, run a non-destructive readiness check:
+
+```powershell
+python scripts/demo_preflight.py --dashboard-url http://127.0.0.1:3001
+```
+
+It checks the dashboard and local evidence APIs without seeding memories,
+starting capture, changing network state, or deleting data. The separate seed
+script is for a disposable demo database only.
+
 For development:
 
 ```powershell
