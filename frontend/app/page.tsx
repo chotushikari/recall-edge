@@ -7,6 +7,9 @@ type NodeState = {
   status: string;
   node_id: string;
   local_memory_count: number;
+  cloud_memory_count: number;
+  pending_sync_count: number;
+  private_count: number;
 };
 type CaptureState = { supported: boolean; capturing: boolean };
 type Session = {
@@ -362,6 +365,41 @@ export default function Home() {
     await refresh();
     setAction(null);
   }
+  async function toggleSyncMode() {
+    const nextOnline = node?.status?.toLowerCase() !== "online";
+    setAction("network");
+    const response = await fetch(`${api}/network/toggle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ online: nextOnline }),
+    });
+    setNotice(
+      response.ok
+        ? nextOnline
+          ? "Recall sync mode is online. Your computer network was not changed."
+          : "Recall sync mode is offline. New eligible memories stay queued locally."
+        : "Recall sync mode could not be changed.",
+    );
+    await refresh();
+    setAction(null);
+  }
+  async function runSync() {
+    if (
+      !window.confirm(
+        "Sync eligible, non-private memory records now? Raw events and screen frames remain local.",
+      )
+    )
+      return;
+    setAction("sync");
+    const response = await fetch(`${api}/sync/run-now`, { method: "POST" });
+    setNotice(
+      response.ok
+        ? "Sync attempt completed. Review the sync report for the evidence-level result."
+        : "Recall could not complete this sync attempt. Your queued local memories remain intact.",
+    );
+    await refresh();
+    setAction(null);
+  }
   return (
     <main className="workspace-shell">
       <aside className="app-sidebar" aria-label="Recall navigation">
@@ -440,6 +478,55 @@ export default function Home() {
             </div>
             <strong>{node?.local_memory_count ?? 0}</strong>
             <small>indexed memories · offline capable</small>
+          </div>
+        </section>
+        <section className="edge-link" aria-label="Local and cloud sync status">
+          <div className="edge-link-copy">
+            <p className="section-kicker">MEMORY BOUNDARY</p>
+            <h2>Local evidence first. Optional sync second.</h2>
+            <p>
+              Events and screen frames stay on this computer. Only eligible
+              semantic memories can enter the optional sync queue.
+            </p>
+          </div>
+          <div className="edge-metrics">
+            <span>
+              <b>{node?.private_count ?? 0}</b>
+              <small>private - never queued</small>
+            </span>
+            <span>
+              <b>{node?.pending_sync_count ?? 0}</b>
+              <small>waiting locally</small>
+            </span>
+            <span>
+              <b>{node?.cloud_memory_count ?? 0}</b>
+              <small>cloud index records</small>
+            </span>
+          </div>
+          <div className="edge-actions">
+            <button
+              className="sync-mode-button"
+              onClick={toggleSyncMode}
+              disabled={action === "network"}
+            >
+              {action === "network"
+                ? "Changing mode..."
+                : node?.status?.toLowerCase() === "online"
+                  ? "Work offline"
+                  : "Restore sync"}
+            </button>
+            <button
+              className="sync-now-button"
+              onClick={runSync}
+              disabled={
+                action === "sync" ||
+                node?.status?.toLowerCase() !== "online" ||
+                !node?.pending_sync_count
+              }
+            >
+              {action === "sync" ? "Syncing..." : "Sync eligible memories"}
+            </button>
+            <a href="/sync/report">View sync report</a>
           </div>
         </section>
         {notice && (
