@@ -816,7 +816,7 @@ export default function Home() {
               <small>
                 {dailySummary.top_apps
                   .slice(0, 3)
-                  .map((app) => app.name)
+                  .map((app) => `${app.name} ${app.minutes}m`)
                   .join(" · ")}
               </small>
             ) : (
