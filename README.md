@@ -44,6 +44,16 @@ Policy is code, not a probabilistic model. This makes the decision inspectable a
 
 ## Run locally
 
+### Recall Desktop (recommended on Windows)
+
+After the one-time dependency install, use one command to start the local API, dashboard, and an app-style Recall window:
+
+```powershell
+python scripts/launch_recall_edge.py
+```
+
+The launcher starts only services that are not already healthy, and it stops only the child processes it created when you press `Ctrl+C`.
+
 ```powershell
 python -m pip install -e .
 uvicorn backend.api.server:app --port 8000
