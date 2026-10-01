@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from backend.activity_collector import LocalActivityCollector
 from backend.activity_collector.windows import is_supported as windows_collector_supported
 from backend.contracts import ActivityEvent, Memory, NodeState, NodeStatus
 from backend.qdrant_local import (
@@ -42,6 +43,7 @@ load_dotenv()
 
 ACTIVITY_DB = Path(".recall_activities.db")
 CAPTURE_PAUSE_MARKER = openchronicle_paths.paused_flag()
+ACTIVITY_COLLECTOR: LocalActivityCollector | None = None
 
 
 class SearchRequest(BaseModel):
@@ -52,6 +54,11 @@ class SearchRequest(BaseModel):
 
 class NetworkToggle(BaseModel):
     online: bool
+
+
+class ActivityCaptureControl(BaseModel):
+    interval_seconds: float = Field(default=3.0, ge=0.5, le=60.0)
+    heartbeat_seconds: float = Field(default=60.0, ge=1.0, le=3_600.0)
 
 
 def _init_activities() -> None:
@@ -68,6 +75,12 @@ def _activity_history(start: datetime | None = None, limit: int = 500) -> list[d
     if start is not None:
         events = [event for event in events if _timestamp(event) >= start]
     return sorted(events, key=_timestamp, reverse=True)[:limit]
+
+
+def _store_activity(event: ActivityEvent) -> None:
+    _init_activities()
+    with sqlite3.connect(ACTIVITY_DB) as connection:
+        connection.execute("INSERT OR IGNORE INTO activities (event_id, payload) VALUES (?, ?)", (event.event_id, event.model_dump_json()))
 
 
 def _timestamp(value: dict[str, Any]) -> datetime:
@@ -108,10 +121,14 @@ async def recall_lifespan(_: FastAPI):
     get_qdrant_client()
     _init_activities()
     init_schema()
+    global ACTIVITY_COLLECTOR
+    ACTIVITY_COLLECTOR = LocalActivityCollector(_store_activity)
     sync_task = create_task(run_sync_loop()) if os.environ.get("RECALL_SYNC_ENABLED", "true").lower() == "true" else None
     try:
         yield
     finally:
+        ACTIVITY_COLLECTOR.stop()
+        ACTIVITY_COLLECTOR = None
         if sync_task:
             sync_task.cancel()
             with suppress(CancelledError):
@@ -154,9 +171,7 @@ def delete_memories() -> dict[str, bool]:
 
 @app.post("/activities")
 def post_activity(event: ActivityEvent) -> dict[str, Any]:
-    _init_activities()
-    with sqlite3.connect(ACTIVITY_DB) as connection:
-        connection.execute("INSERT OR IGNORE INTO activities (event_id, payload) VALUES (?, ?)", (event.event_id, event.model_dump_json()))
+    _store_activity(event)
     return {"event_id": event.event_id, "stored": True}
 
 
@@ -183,11 +198,35 @@ def activity_capabilities() -> dict[str, Any]:
     """Make the platform boundary and browser-data policy visible to the UI."""
     return {
         "foreground_window_collector": windows_collector_supported(),
-        "browser_tabs": "requires explicit browser extension consent",
+        "browser_tabs": "foreground browser tab title is captured with its window",
+        "browser_urls": "not available without browser permission",
         "screenshots": False,
         "keystrokes": False,
         "storage": "local only",
     }
+
+
+@app.get("/activities/capture/status")
+def activity_capture_status() -> dict[str, Any]:
+    return {"supported": windows_collector_supported(), "capturing": bool(ACTIVITY_COLLECTOR and ACTIVITY_COLLECTOR.running)}
+
+
+@app.post("/activities/capture/start")
+def start_activity_capture(control: ActivityCaptureControl) -> dict[str, Any]:
+    if ACTIVITY_COLLECTOR is None:
+        raise HTTPException(status_code=503, detail="Activity collector is not initialized")
+    ACTIVITY_COLLECTOR.start(
+        interval_seconds=control.interval_seconds,
+        heartbeat_seconds=control.heartbeat_seconds,
+    )
+    return activity_capture_status()
+
+
+@app.post("/activities/capture/stop")
+def stop_activity_capture() -> dict[str, Any]:
+    if ACTIVITY_COLLECTOR is not None:
+        ACTIVITY_COLLECTOR.stop()
+    return activity_capture_status()
 
 
 @app.post("/memory/search")

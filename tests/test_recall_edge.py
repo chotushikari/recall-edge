@@ -125,6 +125,7 @@ def test_local_activity_history_is_queryable_and_clearable(isolated_store) -> No
     assert history[0]["event_id"] == created["event_id"]
     assert history[0]["window_title"] == "server.py — Recall"
     assert capabilities["storage"] == "local only"
-    assert capabilities["browser_tabs"] == "requires explicit browser extension consent"
+    assert capabilities["browser_tabs"] == "foreground browser tab title is captured with its window"
+    assert capabilities["browser_urls"] == "not available without browser permission"
     assert client.delete("/activities/all").json() == {"cleared": True}
     assert client.get("/activities/history?range=today").json() == []
