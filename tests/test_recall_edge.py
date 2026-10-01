@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.server import app
+from backend.evidence_store import EvidenceStore
 from backend.qdrant_local.client import reset_client
 from backend.sync.outbox import record_conflict
 
@@ -19,6 +20,7 @@ def isolated_store(tmp_path, monkeypatch):
     monkeypatch.delenv("RECALL_QDRANT_CLOUD_API_KEY", raising=False)
     monkeypatch.setattr("backend.api.server.ACTIVITY_DB", tmp_path / "activities.db")
     monkeypatch.setattr("backend.api.server.EVIDENCE_DB", tmp_path / "recall.db")
+    monkeypatch.setattr("backend.api.server.FRAMES_DIR", tmp_path / "frames")
     reset_client()
     yield tmp_path
     reset_client()
@@ -197,3 +199,31 @@ def test_sessions_can_be_rebuilt_from_local_activity_evidence(isolated_store) ->
     assert rebuilt == {"sessions_rebuilt": 1}
     assert sessions[0]["applications"] == ["Code", "Chrome"]
     assert len(sessions[0]["event_ids"]) == 2
+
+
+def test_frame_endpoints_only_serve_recall_owned_files(isolated_store) -> None:
+    frames_dir = isolated_store / "frames"
+    frames_dir.mkdir()
+    owned = frames_dir / "frame.webp"
+    owned.write_bytes(b"frame-data")
+    store = EvidenceStore(isolated_store / "recall.db")
+    owned_id = store.record_frame(
+        timestamp=datetime.now(UTC), path=str(owned), content_hash="owned", monitor="DISPLAY1",
+        application="Code", window_title="Recall", ocr_text="",
+    )
+    external = isolated_store / "outside.webp"
+    external.write_bytes(b"external-data")
+    external_id = store.record_frame(
+        timestamp=datetime.now(UTC), path=str(external), content_hash="external", monitor="DISPLAY2",
+        application="Code", window_title="Outside", ocr_text="",
+    )
+    client = TestClient(app)
+
+    listed = client.get("/evidence/frames").json()
+    owned_response = client.get(f"/evidence/frames/{owned_id}")
+    external_response = client.get(f"/evidence/frames/{external_id}")
+
+    assert [frame["id"] for frame in listed] == [owned_id]
+    assert owned_response.status_code == 200
+    assert owned_response.content == b"frame-data"
+    assert external_response.status_code == 404

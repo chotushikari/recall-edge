@@ -226,6 +226,30 @@ class EvidenceStore:
             rows = connection.execute("SELECT id, path FROM screen_frames").fetchall()
         return [dict(row) for row in rows]
 
+    def list_frames(
+        self, *, start: datetime | None = None, end: datetime | None = None, limit: int = 100
+    ) -> list[dict[str, str]]:
+        clauses: list[str] = []
+        values: list[object] = []
+        if start is not None:
+            clauses.append("timestamp >= ?")
+            values.append(start.isoformat())
+        if end is not None:
+            clauses.append("timestamp < ?")
+            values.append(end.isoformat())
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        values.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM screen_frames " + where + " ORDER BY timestamp DESC LIMIT ?", values
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_frame(self, frame_id: str) -> dict[str, str] | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM screen_frames WHERE id=?", (frame_id,)).fetchone()
+        return dict(row) if row else None
+
     def delete_frames(self, frame_ids: list[str]) -> int:
         if not frame_ids:
             return 0

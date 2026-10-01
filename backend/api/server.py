@@ -12,6 +12,7 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from backend.activity_collector import LocalActivityCollector
@@ -271,6 +272,43 @@ def evidence_frame_search(
 ) -> list[dict[str, Any]]:
     """Search local frame titles/OCR text. Raw images remain on this device."""
     return _evidence_store().search_frames(query, start=start, limit=limit)
+
+
+def _owned_frame_path(frame: dict[str, object]) -> Path | None:
+    """Resolve a frame only when it remains inside Recall's frame directory."""
+    try:
+        path = Path(str(frame["path"])).resolve()
+        path.relative_to(FRAMES_DIR.resolve())
+    except (KeyError, OSError, ValueError):
+        return None
+    return path if path.is_file() else None
+
+
+@app.get("/evidence/frames")
+def evidence_frames(
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[dict[str, object]]:
+    """List local frame metadata without exposing filesystem paths."""
+    frames: list[dict[str, object]] = []
+    for frame in _evidence_store().list_frames(start=start, end=end, limit=limit):
+        if _owned_frame_path(frame) is None:
+            continue
+        frames.append(
+            {key: value for key, value in frame.items() if key != "path"}
+            | {"image_url": f"/evidence/frames/{frame['id']}"}
+        )
+    return frames
+
+
+@app.get("/evidence/frames/{frame_id}")
+def evidence_frame_image(frame_id: str) -> FileResponse:
+    frame = _evidence_store().get_frame(frame_id)
+    path = _owned_frame_path(frame) if frame is not None else None
+    if path is None:
+        raise HTTPException(status_code=404, detail="Local frame not found")
+    return FileResponse(path)
 
 
 @app.post("/sessions/rebuild")

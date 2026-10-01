@@ -81,7 +81,8 @@ Not yet claimed as complete:
 - OCR, browser URL/tab permission flow, clipboard, file activity, input/AFK
   tracking, and audio.
 - Hybrid retrieval (time + FTS + vector + session expansion), grounded AI
-  answers, and a screenshot timeline viewer.
+  answers, and a full screenshot timeline viewer. The dashboard currently
+  shows permitted local frames in the selected session's evidence inspector.
 - A packaged native desktop shell and the full settings/export/retention UI.
 
 ## Privacy
@@ -134,6 +135,11 @@ stop it with `POST /visual-capture/stop`.
 Rebuild grounded activity blocks with `POST /sessions/rebuild`, then retrieve
 them from `GET /sessions`. A session records its source event IDs so timeline
 and future AI answers can link back to actual evidence.
+
+Permitted screen-frame metadata is available from `GET /evidence/frames`.
+The dashboard uses this local endpoint to show frames inside a selected time
+window; it serves an image only when the file is still within Recall's managed
+frame directory, and never exposes the local filesystem path.
 
 Frame retention is an explicit call to `POST /evidence/retention/prune` with a
 chosen `retention_days` value. A local-only wipe requires
