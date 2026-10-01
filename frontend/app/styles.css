@@ -393,7 +393,9 @@ input {
   cursor: pointer;
   font-size: 1.45rem;
   line-height: 1;
-  transition: background 0.14s ease, transform 0.14s ease;
+  transition:
+    background 0.14s ease,
+    transform 0.14s ease;
 }
 .nav-chevron:hover:not(:disabled) {
   background: #ede4da;
@@ -444,11 +446,16 @@ input {
   cursor: pointer;
   font-size: 0.67rem;
   font-weight: 700;
-  transition: background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease;
 }
 .view-switch button.selected {
   background: rgba(255, 253, 249, 0.88);
-  box-shadow: 0 1px 4px rgba(67, 49, 33, 0.11), inset 0 1px 0 #fff;
+  box-shadow:
+    0 1px 4px rgba(67, 49, 33, 0.11),
+    inset 0 1px 0 #fff;
   color: #4d463d;
 }
 .today-button:hover,
@@ -540,6 +547,83 @@ input {
   display: grid;
   grid-template-columns: minmax(440px, 1.35fr) minmax(320px, 0.75fr);
   gap: 31px;
+}
+.memory-rhythm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 0.62fr);
+  gap: 22px;
+  align-items: center;
+  margin: 0 0 27px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.rhythm-days {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 5px;
+  align-items: end;
+}
+.rhythm-day {
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+}
+.rhythm-day i {
+  display: block;
+  width: min(100%, 19px);
+  aspect-ratio: 1;
+  border-radius: 5px;
+  background: #eee8df;
+}
+.rhythm-day .heat-1 {
+  background: #f5cfbd;
+}
+.rhythm-day .heat-2 {
+  background: #f6ad8c;
+}
+.rhythm-day .heat-3 {
+  background: #f57f51;
+}
+.rhythm-day .heat-4 {
+  background: #dc5b32;
+}
+.rhythm-day small {
+  color: #aaa196;
+  font-size: 0.54rem;
+}
+.daily-digest {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 9px;
+  align-items: start;
+  color: #746d64;
+}
+.digest-mark {
+  grid-row: span 2;
+  color: var(--orange);
+  font-size: 1rem;
+}
+.daily-digest p {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+.daily-digest p b {
+  display: block;
+  color: #514b43;
+  font-family: Inter, ui-sans-serif, system-ui;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.daily-digest small {
+  grid-column: 2;
+  margin-top: 5px;
+  color: #9a9186;
+  font-size: 0.6rem;
 }
 .timeline-area {
   min-width: 0;
@@ -876,7 +960,9 @@ input {
   color: var(--orange);
   cursor: pointer;
   font-size: 0.68rem;
-  transition: transform 0.14s ease, border-color 0.14s ease;
+  transition:
+    transform 0.14s ease,
+    border-color 0.14s ease;
 }
 .frame-play:hover {
   border-color: var(--orange);
@@ -1118,6 +1204,10 @@ input {
   }
   .content-grid {
     display: block;
+  }
+  .memory-rhythm {
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
   .inspector-area {
     margin-top: 24px;

@@ -40,6 +40,12 @@ type SearchResult = {
     provenance?: { app_name?: string };
   };
 };
+type DailySummary = {
+  summary: string;
+  top_apps: { name: string; minutes: number }[];
+  focus_minutes: number;
+};
+type HeatmapDay = { date: string; count: number };
 
 const api = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
@@ -99,6 +105,8 @@ export default function Home() {
   const [isPlayingFrames, setIsPlayingFrames] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
+  const [heatmap, setHeatmap] = useState<HeatmapDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -117,6 +125,8 @@ export default function Home() {
         fetch(
           `${api}/evidence/frames?start=${encodeURIComponent(start)}&limit=100`,
         ),
+        fetch(`${api}/daily-summary`),
+        fetch(`${api}/calendar-heatmap?days=14`),
       ]);
       if (responses.some((response) => !response.ok))
         throw new Error("A local endpoint was unavailable");
@@ -127,6 +137,8 @@ export default function Home() {
         nextSessions,
         nextEvents,
         nextFrames,
+        nextDailySummary,
+        nextHeatmap,
       ] = await Promise.all(responses.map((response) => response.json()));
       setNode(nextNode);
       setActivity(nextActivity);
@@ -134,6 +146,8 @@ export default function Home() {
       setSessions(nextSessions);
       setEvents(nextEvents);
       setFrames(nextFrames);
+      setDailySummary(nextDailySummary);
+      setHeatmap(nextHeatmap.days ?? []);
       setSelectedId((current) =>
         nextSessions.some((session: Session) => session.id === current)
           ? current
@@ -200,7 +214,9 @@ export default function Home() {
         const currentIndex = selectedFrames.findIndex(
           (frame) => frame.id === current,
         );
-        return selectedFrames[(currentIndex + 1) % selectedFrames.length]?.id ?? null;
+        return (
+          selectedFrames[(currentIndex + 1) % selectedFrames.length]?.id ?? null
+        );
       });
     }, 900);
     return () => window.clearInterval(timer);
@@ -402,14 +418,48 @@ export default function Home() {
         )}
         <section className="overview-strip">
           <div className="timeline-navigation" aria-label="Time window">
-            <button className="nav-chevron" onClick={() => moveRange(-1)} disabled={!canMoveBack} aria-label="Show an earlier period">‹</button>
-            <button className="date-pill" onClick={() => setRange("today")}><span className="calendar-glyph">▦</span>{rangeTitle}</button>
-            <button className="nav-chevron" onClick={() => moveRange(1)} disabled={!canMoveForward} aria-label="Show a later period">›</button>
+            <button
+              className="nav-chevron"
+              onClick={() => moveRange(-1)}
+              disabled={!canMoveBack}
+              aria-label="Show an earlier period"
+            >
+              ‹
+            </button>
+            <button className="date-pill" onClick={() => setRange("today")}>
+              <span className="calendar-glyph">▦</span>
+              {rangeTitle}
+            </button>
+            <button
+              className="nav-chevron"
+              onClick={() => moveRange(1)}
+              disabled={!canMoveForward}
+              aria-label="Show a later period"
+            >
+              ›
+            </button>
             <div className="view-switch" aria-label="Timeline scale">
-              <button className={range === "week" ? "" : "selected"} onClick={() => setRange("today")}>Day</button>
-              <button className={range === "week" ? "selected" : ""} onClick={() => setRange("week")}>Week</button>
+              <button
+                className={range === "week" ? "" : "selected"}
+                onClick={() => setRange("today")}
+              >
+                Day
+              </button>
+              <button
+                className={range === "week" ? "selected" : ""}
+                onClick={() => setRange("week")}
+              >
+                Week
+              </button>
             </div>
-            {range !== "today" && <button className="today-button" onClick={() => setRange("today")}>Today</button>}
+            {range !== "today" && (
+              <button
+                className="today-button"
+                onClick={() => setRange("today")}
+              >
+                Today
+              </button>
+            )}
           </div>
           <div className="capture-summary">
             <CaptureToggle
@@ -428,6 +478,43 @@ export default function Home() {
               supported={Boolean(visual?.supported)}
               action={toggleVisual}
             />
+          </div>
+        </section>
+        <section className="memory-rhythm" aria-label="Recent activity rhythm">
+          <div className="rhythm-days">
+            {heatmap.map((item) => {
+              const intensity = Math.min(item.count, 4);
+              const label = new Date(
+                `${item.date}T00:00:00`,
+              ).toLocaleDateString([], { month: "short", day: "numeric" });
+              return (
+                <div
+                  className="rhythm-day"
+                  key={item.date}
+                  title={`${label}: ${item.count} memories`}
+                >
+                  <i className={`heat-${intensity}`} />
+                  <small>{label.slice(-2)}</small>
+                </div>
+              );
+            })}
+          </div>
+          <div className="daily-digest">
+            <span className="digest-mark">✦</span>
+            <p>
+              <b>Today’s local digest</b>
+              {dailySummary?.summary ?? "Loading local activity summary…"}
+            </p>
+            {dailySummary?.top_apps.length ? (
+              <small>
+                {dailySummary.top_apps
+                  .slice(0, 3)
+                  .map((app) => app.name)
+                  .join(" · ")}
+              </small>
+            ) : (
+              <small>Capture is off until you choose to start it.</small>
+            )}
           </div>
         </section>
         <section className="content-grid">
@@ -560,7 +647,11 @@ export default function Home() {
                     <button
                       className="frame-play"
                       onClick={() => setIsPlayingFrames((playing) => !playing)}
-                      aria-label={isPlayingFrames ? "Pause evidence replay" : "Play evidence replay"}
+                      aria-label={
+                        isPlayingFrames
+                          ? "Pause evidence replay"
+                          : "Play evidence replay"
+                      }
                       aria-pressed={isPlayingFrames}
                     >
                       {isPlayingFrames ? "Ⅱ" : "▶"}
@@ -572,11 +663,16 @@ export default function Home() {
                       value={activeFrameIndex}
                       onChange={(event) => {
                         setIsPlayingFrames(false);
-                        setSelectedFrameId(selectedFrames[Number(event.target.value)]?.id ?? null);
+                        setSelectedFrameId(
+                          selectedFrames[Number(event.target.value)]?.id ??
+                            null,
+                        );
                       }}
                       aria-label="Scrub through permitted session frames"
                     />
-                    <span>{activeFrameIndex + 1} / {selectedFrames.length}</span>
+                    <span>
+                      {activeFrameIndex + 1} / {selectedFrames.length}
+                    </span>
                   </div>
                 )}
                 {selectedFrames.length > 1 && (
