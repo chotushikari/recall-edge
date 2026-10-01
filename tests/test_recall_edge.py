@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -129,3 +131,24 @@ def test_local_activity_history_is_queryable_and_clearable(isolated_store) -> No
     assert capabilities["browser_urls"] == "not available without browser permission"
     assert client.delete("/activities/all").json() == {"cleared": True}
     assert client.get("/activities/history?range=today").json() == []
+
+
+def test_activity_events_drive_app_usage_when_collector_data_exists(isolated_store) -> None:
+    client = TestClient(app)
+    now = datetime.now(UTC)
+    for minutes_ago, app_name in [(4, "Code"), (2, "Chrome")]:
+        client.post(
+            "/activities",
+            json={
+                "timestamp": (now - timedelta(minutes=minutes_ago)).isoformat(),
+                "app_name": app_name,
+                "window_title": f"{app_name} activity",
+            },
+        ).raise_for_status()
+
+    usage = client.get("/app-usage?range=today").json()["apps"]
+
+    by_app = {item["app_name"]: item for item in usage}
+    assert by_app["Code"]["minutes"] == 2
+    assert by_app["Chrome"]["minutes"] == 2
+    assert by_app["Code"]["source"] == "activity"

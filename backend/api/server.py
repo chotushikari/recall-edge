@@ -77,6 +77,27 @@ def _activity_history(start: datetime | None = None, limit: int = 500) -> list[d
     return sorted(events, key=_timestamp, reverse=True)[:limit]
 
 
+def _activity_usage(start: datetime, end: datetime | None = None) -> list[dict[str, Any]]:
+    """Calculate bounded foreground durations from local collector heartbeats."""
+    end = end or datetime.now(UTC)
+    events = sorted(_activity_history(limit=100_000), key=_timestamp)
+    seconds_by_app: dict[tuple[str, str | None], float] = {}
+    for index, event in enumerate(events):
+        timestamp = _timestamp(event)
+        next_timestamp = _timestamp(events[index + 1]) if index + 1 < len(events) else end
+        interval_start = max(timestamp, start)
+        interval_end = min(next_timestamp, end)
+        # A stopped collector must not turn an old heartbeat into hours of activity.
+        seconds = min(max((interval_end - interval_start).total_seconds(), 0), 300)
+        if seconds:
+            key = (event["app_name"], event.get("bundle_id"))
+            seconds_by_app[key] = seconds_by_app.get(key, 0) + seconds
+    return [
+        {"app_name": name, "minutes": max(1, round(seconds / 60)), "bundle_id": bundle_id, "source": "activity"}
+        for (name, bundle_id), seconds in sorted(seconds_by_app.items(), key=lambda item: (-item[1], item[0][0]))
+    ]
+
+
 def _store_activity(event: ActivityEvent) -> None:
     _init_activities()
     with sqlite3.connect(ACTIVITY_DB) as connection:
@@ -288,21 +309,24 @@ def daily_summary(
     """Return a deterministic daily digest without sending activity to an LLM."""
     target = summary_date or datetime.now(UTC).date()
     start = datetime.combine(target, datetime.min.time(), tzinfo=UTC)
-    memories = _range_memories(start, start + timedelta(days=1))
+    end = start + timedelta(days=1)
+    memories = _range_memories(start, end)
+    activity_apps = _activity_usage(start, end)
     counts: dict[str, int] = {}
     for memory in memories:
         app_name = _app_name(memory)
         counts[app_name] = counts.get(app_name, 0) + 1
-    top_apps = [
+    memory_apps = [
         {"name": name, "minutes": count * 5}
         for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:5]
     ]
+    top_apps = [{"name": app["app_name"], "minutes": app["minutes"]} for app in activity_apps[:5]] or memory_apps
     summary = (
         f"No recorded memories for {target.isoformat()}."
         if not memories
         else f"Captured {len(memories)} memories across {len(counts)} apps on {target.isoformat()}."
     )
-    return {"summary": summary, "top_apps": top_apps, "focus_minutes": 0, "achievements": []}
+    return {"summary": summary, "top_apps": top_apps, "focus_minutes": sum(app["minutes"] for app in activity_apps), "achievements": []}
 
 
 @app.get("/app-usage")
@@ -310,13 +334,16 @@ def app_usage(range: str = "today") -> dict[str, list[dict[str, Any]]]:
     """Aggregate recent memory activity into an explicitly approximate time proxy."""
     start = _range_start(range)
     end = _range_start("today") if range == "yesterday" else None
+    activity_apps = _activity_usage(start, end)
+    if activity_apps:
+        return {"apps": activity_apps[:5]}
     counts: dict[tuple[str, str | None], int] = {}
     for memory in _range_memories(start, end):
         provenance = memory.get("provenance") or {}
         key = (_app_name(memory), provenance.get("bundle_id"))
         counts[key] = counts.get(key, 0) + 1
     apps = [
-        {"app_name": name, "minutes": count * 5, "bundle_id": bundle_id}
+        {"app_name": name, "minutes": count * 5, "bundle_id": bundle_id, "source": "memory_estimate"}
         for (name, bundle_id), count in sorted(counts.items(), key=lambda item: (-item[1], item[0][0]))[:5]
     ]
     return {"apps": apps}
