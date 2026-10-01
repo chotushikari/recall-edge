@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from backend.activity_collector import LocalActivityCollector
 from backend.activity_collector.windows import is_supported as windows_collector_supported
 from backend.contracts import ActivityEvent, Memory, NodeState, NodeStatus
+from backend.evidence_store import EvidenceStore
 from backend.qdrant_local import (
     clear_memories,
     count_local,
@@ -42,6 +43,7 @@ from openchronicle import paths as openchronicle_paths
 load_dotenv()
 
 ACTIVITY_DB = Path(".recall_activities.db")
+EVIDENCE_DB = Path(".recall.db")
 CAPTURE_PAUSE_MARKER = openchronicle_paths.paused_flag()
 ACTIVITY_COLLECTOR: LocalActivityCollector | None = None
 
@@ -64,6 +66,10 @@ class ActivityCaptureControl(BaseModel):
 def _init_activities() -> None:
     with sqlite3.connect(ACTIVITY_DB) as connection:
         connection.execute("CREATE TABLE IF NOT EXISTS activities (event_id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+
+
+def _evidence_store() -> EvidenceStore:
+    return EvidenceStore(EVIDENCE_DB)
 
 
 def _activity_history(start: datetime | None = None, limit: int = 500) -> list[dict[str, Any]]:
@@ -102,6 +108,7 @@ def _store_activity(event: ActivityEvent) -> None:
     _init_activities()
     with sqlite3.connect(ACTIVITY_DB) as connection:
         connection.execute("INSERT OR IGNORE INTO activities (event_id, payload) VALUES (?, ?)", (event.event_id, event.model_dump_json()))
+    _evidence_store().record_activity(event)
 
 
 def _timestamp(value: dict[str, Any]) -> datetime:
@@ -211,7 +218,18 @@ def clear_activities() -> dict[str, bool]:
     _init_activities()
     with sqlite3.connect(ACTIVITY_DB) as connection:
         connection.execute("DELETE FROM activities")
+    _evidence_store().clear_history()
     return {"cleared": True}
+
+
+@app.get("/evidence/events")
+def evidence_events(
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = Query(default=500, ge=1, le=5_000),
+) -> list[dict[str, Any]]:
+    """Read normalized local evidence; it is never sent to cloud sync."""
+    return _evidence_store().list_events(start=start, end=end, limit=limit)
 
 
 @app.get("/activities/capabilities")

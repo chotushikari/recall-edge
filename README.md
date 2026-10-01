@@ -1,105 +1,140 @@
-# Recall Edge
+# Recall
 
-Recall Edge is a privacy-first personal activity memory system built around **Qdrant local mode**. It transforms application activity into versioned, semantically searchable memories that remain useful without network access.
+Recall is an independent, local-first personal computer memory system. With
+explicit permission, it captures allowed computer context, organizes it into a
+searchable timeline, and will let you ask grounded questions about what you did
+and saw.
 
-## Why it exists
+It is not a Microsoft product and is not affiliated with or endorsed by
+Microsoft. The project is an independent open-source implementation and
+research effort inspired by the broader shift toward computers with memory,
+context, and agentic capabilities, along with products and projects such as
+Windows Recall, Dayflow, Screenpipe, and ActivityWatch.
 
-Personal activity is valuable context, but it should not automatically become cloud data. Recall Edge separates those concerns:
+## What is this?
 
-- Search happens locally through Qdrant's in-process vector engine.
-- A deterministic policy classifies every memory as `private` or `syncable`.
-- Private memories never enter the sync path.
-- Syncable memories can be queued for Qdrant Cloud when connectivity returns.
-- New information supersedes older memories without erasing history.
+Today's computers execute commands. Recall is the memory layer that helps a
+computer retain the context behind them: the apps, windows, pages, files, and
+visual evidence a person explicitly chooses to record. The goal is not to build
+a screen recorder, time tracker, or generic chatbot. It is to make past work
+retrievable, inspectable, and eventually useful to an AI assistant.
+
+```text
+Computer
+   ↓
+Observe
+   ↓
+Remember
+   ↓
+Understand
+   ↓
+Retrieve
+   ↓
+Reason
+   ↓
+Assist
+   ↓
+Act
+```
 
 ## Architecture
 
 ```text
-Activity capture -> typed memory -> local embedding -> Qdrant local collection
-                                                        |
-                                                 offline semantic search
-                                                        |
-                                    privacy gate -> durable sync outbox -> Qdrant Cloud
+Screen + Apps + Browser + OS Events
+                ↓
+           Capture Layer
+                ↓
+          Local Memory (SQLite)
+                ↓
+       OCR + Embeddings
+                ↓
+      Timeline + Search
+                ↓
+        AI Retrieval
+                ↓
+        Ask My Computer
 ```
 
-The application is deliberately local-first. The Qdrant collection lives in `.qdrant_local/`, runs in the application process, and does not require Docker or a separately managed vector database.
+The local SQLite evidence store is the source of truth for raw activity and
+frames. It keeps normalized events, screen-frame metadata, and a local FTS5
+index together. Qdrant is the derived semantic index for memories and is never
+the sole evidence source. Any future AI answer must link back to the events or
+frames that support it.
 
-## Privacy policy
+## Current implementation
 
-| Classification | Examples | Storage behavior |
-| --- | --- | --- |
-| `private` | Password manager, banking, email, personal contacts | Local only; excluded from sync |
-| `syncable` | Research, source code work, project activity, technical tools | Local first; eligible for queued cloud sync |
+Working now:
 
-Policy is code, not a probabilistic model. This makes the decision inspectable and testable.
+- Opt-in Windows foreground application and window-title capture.
+- Local SQLite activity ledger and normalized evidence-event store.
+- Local Qdrant semantic-memory index, offline search, version history, and an
+  optional privacy-gated cloud-sync outbox.
+- A local API and dashboard, plus a one-command Windows launcher.
+- Local FTS5 support for screen-frame evidence; frame storage and OCR are ready
+  at the schema level but capture is intentionally not enabled yet.
 
-## Current capabilities
+Not yet claimed as complete:
 
-- Qdrant-backed local memory ingest and semantic search
-- Offline mode that preserves search functionality
-- Deterministic app/type privacy classification
-- Memory version history using supersede-not-delete semantics
-- Automatic retry-safe sync loop for queued Qdrant Cloud writes
-- FastAPI endpoints for memories, activity audit records, node status, network simulation, and reset
+- Windows screen snapshots, OCR, browser URL/tab permission flow, clipboard,
+  file activity, input/AFK tracking, and audio.
+- Session reconstruction over the Windows evidence store.
+- Hybrid retrieval (time + FTS + vector + session expansion), grounded AI
+  answers, and a screenshot timeline viewer.
+- A packaged native desktop shell and the full settings/export/retention UI.
 
-## Run locally
+## Privacy
 
-### Recall Desktop (recommended on Windows)
+Computer memory is sensitive. Recall defaults to local storage and does not
+silently start visual capture. Before screenshots or richer signals are added,
+the runtime will require explicit opt-in and ship with:
 
-After the one-time dependency install, use one command to start the local API, dashboard, and an app-style Recall window:
+- visible recording status, global pause, and a stop/kill control;
+- application, window, website, private-window, and sensitive-content
+  exclusions;
+- retention limits, per-range deletion, full wipe, and export;
+- local processing by default, with cloud synchronization limited to
+  deliberately eligible derived memories;
+- evidence links so a generated summary can be checked or removed with its
+  source data.
+
+The current Windows collector records only the foreground app and its window
+title. It does not capture screenshots, keystrokes, clipboard contents, browser
+URLs, inactive browser tabs, or cloud-upload raw activity.
+
+## Run locally on Windows
+
+After installing dependencies once, launch the local API and dashboard in one
+app-style window:
 
 ```powershell
 python scripts/launch_recall_edge.py
 ```
 
-The launcher starts only services that are not already healthy, and it stops only the child processes it created when you press `Ctrl+C`.
+For development:
 
 ```powershell
 python -m pip install -e .
-uvicorn backend.api.server:app --port 8000
-```
-
-Then open the API documentation at `http://localhost:8000/docs`.
-
-In a second terminal, start the dashboard:
-
-```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. If that port is already in use, run `npm run dev -- -p 3001` and open port 3001 instead.
-
-### Windows activity ledger (opt-in)
-
-Recall Edge can record the foreground application and window title on Windows from the moment you start the collector:
-
-```powershell
-python scripts/run_windows_activity_collector.py
-```
-
-Events remain in the local activity database and are visible through `GET /activities/history` and the dashboard's **Local Activity Ledger**. The collector does **not** take screenshots, read keystrokes, inspect clipboard contents, or upload activity to Qdrant Cloud. Capturing browser URLs or every open tab requires a separate browser extension with explicit permission; an active browser window title alone is not a reliable tab-history source.
-
-On Windows, the collector is also available inside the Recall process through `POST /activities/capture/start` and `POST /activities/capture/stop`; this is the preferred single-app mode. When a browser is foregrounded, its active tab title is recorded as the window title. Browser security prevents a desktop-only application from reading full URLs or inactive tabs without separate browser permission, so Recall intentionally does not claim otherwise.
-
-Example query:
-
-```powershell
-Invoke-RestMethod http://localhost:8000/memory/search -Method Post -ContentType 'application/json' -Body '{"query":"What did I research about vector search?","top_k":5}'
-```
-
-## Configuration
-
-Copy `.env.example` to `.env` and configure the node identifier, local Qdrant path, sync interval, and—when ready—Qdrant Cloud URL/API key.
+Start permitted foreground-window capture through the dashboard or with
+`POST /activities/capture/start`; stop it with
+`POST /activities/capture/stop`. The normalized evidence API is available at
+`GET /evidence/events` and the raw compatibility ledger at
+`GET /activities/history`.
 
 ## Roadmap
 
-1. Durable privacy-gated outbox and Qdrant Cloud synchronization
-2. Demo corpus and rehearsal tooling
-3. Evidence-first dashboard with timeline, search, status, and version history
-4. Capture-pipeline integration and end-to-end offline/reconnect demo
+1. Complete the Windows event-and-evidence runtime: permissioned screenshots,
+   change detection, exclusions, retention, and deletion controls.
+2. Add local OCR, browser/file adapters, and session reconstruction.
+3. Deliver timeline and screenshot evidence views.
+4. Implement hybrid retrieval and grounded “Ask My Computer” answers.
+5. Package the runtime as a Windows desktop app before expanding to macOS and
+   Linux adapters.
 
-## License and notices
+## License
 
-Recall Edge is distributed under the MIT License. See [LICENSE](LICENSE). Third-party dependencies retain their respective licenses.
+Recall is distributed under the MIT License. See [LICENSE](LICENSE).

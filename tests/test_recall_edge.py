@@ -18,6 +18,7 @@ def isolated_store(tmp_path, monkeypatch):
     monkeypatch.delenv("RECALL_QDRANT_CLOUD_URL", raising=False)
     monkeypatch.delenv("RECALL_QDRANT_CLOUD_API_KEY", raising=False)
     monkeypatch.setattr("backend.api.server.ACTIVITY_DB", tmp_path / "activities.db")
+    monkeypatch.setattr("backend.api.server.EVIDENCE_DB", tmp_path / "recall.db")
     reset_client()
     yield tmp_path
     reset_client()
@@ -126,6 +127,9 @@ def test_local_activity_history_is_queryable_and_clearable(isolated_store) -> No
 
     assert history[0]["event_id"] == created["event_id"]
     assert history[0]["window_title"] == "server.py — Recall"
+    evidence = client.get("/evidence/events").json()
+    assert evidence[0]["id"] == created["event_id"]
+    assert evidence[0]["event_type"] == "window_focus"
     assert capabilities["storage"] == "local only"
     assert capabilities["browser_tabs"] == "foreground browser tab title is captured with its window"
     assert capabilities["browser_urls"] == "not available without browser permission"
