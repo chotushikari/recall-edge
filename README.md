@@ -73,6 +73,7 @@ Working now:
 - Explicitly confirmed Windows primary-monitor screenshots, change detection,
   app/window exclusions, and local frame storage.
 - Local FTS5 support for screen-frame evidence; OCR ingestion is next.
+- Explicit local frame-retention pruning and full local evidence wipe controls.
 
 Not yet claimed as complete:
 
@@ -92,7 +93,8 @@ request with `confirm_visual_capture: true`, and it ships with:
 - visible recording status, global pause, and a stop/kill control;
 - application, window, website, private-window, and sensitive-content
   exclusions;
-- retention limits, per-range deletion, full wipe, and export;
+- retention pruning and a confirmed full local wipe; per-range deletion and
+  export remain upcoming UI work;
 - local processing by default, with cloud synchronization limited to
   deliberately eligible derived memories;
 - evidence links so a generated summary can be checked or removed with its
@@ -129,10 +131,14 @@ Start permitted foreground-window capture through the dashboard or with
 `POST /visual-capture/start` request includes `confirm_visual_capture: true`;
 stop it with `POST /visual-capture/stop`.
 
+Frame retention is an explicit call to `POST /evidence/retention/prune` with a
+chosen `retention_days` value. A local-only wipe requires
+`DELETE /evidence/all` with `confirm_delete: true`; it also clears local
+semantic memories but cannot erase copies already sent to an optional cloud.
+
 ## Roadmap
 
-1. Add retention and per-range deletion controls to the Windows
-   event-and-evidence runtime.
+1. Add per-range deletion and data export controls to the Windows runtime.
 2. Add local OCR, browser/file adapters, and session reconstruction.
 3. Deliver timeline and screenshot evidence views.
 4. Implement hybrid retrieval and grounded “Ask My Computer” answers.

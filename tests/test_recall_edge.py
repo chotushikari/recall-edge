@@ -150,6 +150,13 @@ def test_visual_capture_requires_explicit_confirmation(isolated_store) -> None:
     assert "confirm_visual_capture" in rejected.json()["detail"]
 
 
+def test_local_evidence_wipe_requires_confirmation(isolated_store) -> None:
+    response = TestClient(app).request("DELETE", "/evidence/all", json={"confirm_delete": False})
+
+    assert response.status_code == 409
+    assert "confirm_delete" in response.json()["detail"]
+
+
 def test_activity_events_drive_app_usage_when_collector_data_exists(isolated_store) -> None:
     client = TestClient(app)
     now = datetime.now(UTC)

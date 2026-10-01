@@ -118,6 +118,35 @@ class ScreenCaptureService:
         return StoredFrame(id=frame_id, path=target)
 
 
+class FrameRetentionService:
+    """Deletes frame records and only files proven to belong to Recall."""
+
+    def __init__(self, *, store: EvidenceStore, frames_dir: Path) -> None:
+        self.store = store
+        self.frames_dir = frames_dir.resolve()
+
+    def prune_before(self, cutoff: datetime) -> int:
+        frames = self.store.frames_before(cutoff)
+        return self._delete_frames(frames)
+
+    def clear(self) -> int:
+        return self._delete_frames(self.store.all_frames())
+
+    def _delete_frames(self, frames: list[dict[str, str]]) -> int:
+        for frame in frames:
+            self._delete_owned_file(Path(frame["path"]))
+        return self.store.delete_frames([frame["id"] for frame in frames])
+
+    def _delete_owned_file(self, candidate: Path) -> None:
+        try:
+            resolved = candidate.resolve()
+            resolved.relative_to(self.frames_dir)
+        except (OSError, ValueError):
+            return
+        if resolved.is_file():
+            resolved.unlink()
+
+
 class VisualCaptureCollector:
     """Threaded visual capture runtime; constructed only after explicit opt-in."""
 

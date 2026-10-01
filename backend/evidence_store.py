@@ -199,6 +199,32 @@ class EvidenceStore:
                 is not None
             )
 
+    def frames_before(self, cutoff: datetime) -> list[dict[str, str]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT id, path FROM screen_frames WHERE timestamp < ? ORDER BY timestamp ASC",
+                (cutoff.isoformat(),),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def all_frames(self) -> list[dict[str, str]]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT id, path FROM screen_frames").fetchall()
+        return [dict(row) for row in rows]
+
+    def delete_frames(self, frame_ids: list[str]) -> int:
+        if not frame_ids:
+            return 0
+        placeholders = ",".join("?" for _ in frame_ids)
+        with self._connect() as connection:
+            connection.execute(
+                f"DELETE FROM screen_frames_fts WHERE frame_id IN ({placeholders})", frame_ids
+            )
+            cursor = connection.execute(
+                f"DELETE FROM screen_frames WHERE id IN ({placeholders})", frame_ids
+            )
+        return int(cursor.rowcount)
+
     def search_frames(
         self, query: str, *, start: datetime | None = None, limit: int = 50
     ) -> list[dict[str, str]]:

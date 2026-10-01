@@ -30,6 +30,7 @@ from backend.qdrant_local import (
 )
 from backend.screen_capture import (
     CapturePolicy,
+    FrameRetentionService,
     MssScreenSource,
     ScreenCaptureService,
     VisualCaptureCollector,
@@ -79,6 +80,14 @@ class VisualCaptureControl(BaseModel):
     interval_seconds: float = Field(default=15.0, ge=1.0, le=300.0)
     excluded_applications: list[str] = Field(default_factory=list)
     excluded_window_terms: list[str] = Field(default_factory=list)
+
+
+class RetentionPruneControl(BaseModel):
+    retention_days: int = Field(ge=1, le=3_650)
+
+
+class ConfirmDeleteControl(BaseModel):
+    confirm_delete: bool = False
 
 
 def _init_activities() -> None:
@@ -261,6 +270,35 @@ def evidence_frame_search(
 ) -> list[dict[str, Any]]:
     """Search local frame titles/OCR text. Raw images remain on this device."""
     return _evidence_store().search_frames(query, start=start, limit=limit)
+
+
+def _frame_retention() -> FrameRetentionService:
+    return FrameRetentionService(store=_evidence_store(), frames_dir=FRAMES_DIR)
+
+
+@app.post("/evidence/retention/prune")
+def prune_evidence_retention(control: RetentionPruneControl) -> dict[str, int]:
+    """Delete local frame evidence older than the user-selected retention window."""
+    cutoff = datetime.now(UTC) - timedelta(days=control.retention_days)
+    return {"frames_deleted": _frame_retention().prune_before(cutoff)}
+
+
+@app.delete("/evidence/all")
+def delete_all_local_evidence(control: ConfirmDeleteControl) -> dict[str, int | bool]:
+    """Explicit local-only wipe; remote copies require separate cloud deletion."""
+    if not control.confirm_delete:
+        raise HTTPException(status_code=409, detail="Local wipe requires confirm_delete=true.")
+    global VISUAL_CAPTURE_COLLECTOR
+    if VISUAL_CAPTURE_COLLECTOR is not None:
+        VISUAL_CAPTURE_COLLECTOR.stop()
+    frames_deleted = _frame_retention().clear()
+    _evidence_store().clear_history()
+    _init_activities()
+    with sqlite3.connect(ACTIVITY_DB) as connection:
+        connection.execute("DELETE FROM activities")
+    clear_memories()
+    clear_outbox()
+    return {"cleared": True, "frames_deleted": frames_deleted}
 
 
 @app.get("/activities/capabilities")
