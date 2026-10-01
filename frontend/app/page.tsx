@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type Range = "today" | "yesterday" | "week";
 type NodeState = {
@@ -108,6 +115,7 @@ export default function Home() {
   const [isPlayingFrames, setIsPlayingFrames] = useState(false);
   const [showPrivacyControls, setShowPrivacyControls] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [notePrivacy, setNotePrivacy] = useState<"private" | "syncable">(
     "private",
@@ -120,6 +128,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
@@ -435,6 +444,11 @@ export default function Home() {
     }
     setAction(null);
   }
+  function askFromGuide(prompt: string) {
+    setQuery(prompt);
+    setShowGuide(false);
+    window.setTimeout(() => searchInput.current?.focus(), 0);
+  }
   return (
     <main className="workspace-shell">
       <aside className="app-sidebar" aria-label="Recall navigation">
@@ -691,6 +705,7 @@ export default function Home() {
         <form className="memory-search" onSubmit={search}>
           <span>⌕</span>
           <input
+            ref={searchInput}
             aria-label="Ask local memory"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -1041,7 +1056,68 @@ export default function Home() {
           </aside>
         </section>
       </section>
+      <section className="recall-guide" aria-label="Recall guide">
+        {showGuide && (
+          <div className="guide-card" role="dialog" aria-label="Recall guide">
+            <button
+              className="guide-close"
+              onClick={() => setShowGuide(false)}
+              aria-label="Close Recall guide"
+            >
+              ×
+            </button>
+            <div className="guide-heading">
+              <GuideFace />
+              <div>
+                <p className="section-kicker">RECALL GUIDE</p>
+                <h2>Start with a memory.</h2>
+              </div>
+            </div>
+            <p>
+              I only search the local memories and evidence already stored on
+              this device.
+            </p>
+            <div className="guide-prompts">
+              <button onClick={() => askFromGuide("What was I doing today?")}>
+                What was I doing today?
+              </button>
+              <button onClick={() => askFromGuide("Find Qdrant research")}>
+                Find Qdrant research
+              </button>
+              <button
+                onClick={() =>
+                  askFromGuide("What did I do after opening VS Code?")
+                }
+              >
+                What happened after VS Code?
+              </button>
+            </div>
+            <small>
+              Choose a prompt, then press Enter to search local memory.
+            </small>
+          </div>
+        )}
+        <button
+          className={showGuide ? "guide-fab open" : "guide-fab"}
+          onClick={() => setShowGuide((open) => !open)}
+          aria-expanded={showGuide}
+          aria-label={showGuide ? "Close Recall guide" : "Open Recall guide"}
+        >
+          <GuideFace />
+          <span>Ask Recall</span>
+        </button>
+      </section>
     </main>
+  );
+}
+
+function GuideFace() {
+  return (
+    <span className="guide-face" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }
 
