@@ -192,6 +192,14 @@ export default function Home() {
       : range === "yesterday"
         ? "Yesterday"
         : "Today";
+  const rangeOrder: Range[] = ["week", "yesterday", "today"];
+  const rangeIndex = rangeOrder.indexOf(range);
+  const canMoveBack = rangeIndex > 0;
+  const canMoveForward = rangeIndex < rangeOrder.length - 1;
+  function moveRange(direction: -1 | 1) {
+    const nextRange = rangeOrder[rangeIndex + direction];
+    if (nextRange) setRange(nextRange);
+  }
   async function rebuildSessions() {
     setAction("rebuild");
     const response = await fetch(
@@ -374,25 +382,15 @@ export default function Home() {
           </section>
         )}
         <section className="overview-strip">
-          <div className="date-selector" aria-label="Time window">
-            {(["today", "yesterday", "week"] as Range[]).map((item) => (
-              <button
-                className={range === item ? "date-tab selected" : "date-tab"}
-                key={item}
-                onClick={() => setRange(item)}
-              >
-                <b>
-                  {item === "week" ? "7D" : item === "today" ? "TODAY" : "YDAY"}
-                </b>
-                <span>
-                  {item === "week"
-                    ? "Last 7 days"
-                    : item === "today"
-                      ? "Today"
-                      : "Yesterday"}
-                </span>
-              </button>
-            ))}
+          <div className="timeline-navigation" aria-label="Time window">
+            <button className="nav-chevron" onClick={() => moveRange(-1)} disabled={!canMoveBack} aria-label="Show an earlier period">‹</button>
+            <button className="date-pill" onClick={() => setRange("today")}><span className="calendar-glyph">▦</span>{rangeTitle}</button>
+            <button className="nav-chevron" onClick={() => moveRange(1)} disabled={!canMoveForward} aria-label="Show a later period">›</button>
+            <div className="view-switch" aria-label="Timeline scale">
+              <button className={range === "week" ? "" : "selected"} onClick={() => setRange("today")}>Day</button>
+              <button className={range === "week" ? "selected" : ""} onClick={() => setRange("week")}>Week</button>
+            </div>
+            {range !== "today" && <button className="today-button" onClick={() => setRange("today")}>Today</button>}
           </div>
           <div className="capture-summary">
             <CaptureToggle
