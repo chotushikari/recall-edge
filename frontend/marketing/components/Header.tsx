@@ -1,6 +1,6 @@
 "use client";
 
-const links = ["features", "pricing", "trust", "changelog", "careers"];
+const links = ["vision", "product", "architecture", "privacy", "faq"];
 
 export function Header() {
   return (
