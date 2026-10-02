@@ -1,8 +1,7 @@
-import { CustomCursor } from "../components/CustomCursor";
 import { Header } from "../components/Header";
 import { Hero } from "../components/Hero";
+import { MotionReveal } from "../components/MotionReveal";
 import { ProductShowcase } from "../components/ProductShowcase";
-import { ScrollMotion } from "../components/ScrollMotion";
 
 const privacyPrinciples = [
   ["01", "Explicit capture", "Nothing begins without a clear choice. Start, pause, and stop are always visible."],
@@ -19,20 +18,19 @@ const questions = [
 
 export default function Page() {
   return <main>
-    <CustomCursor />
     <Header />
     <Hero />
-    <ScrollMotion>
+    <>
       <section className="proof-strip" aria-label="Recall product principles">
         <span>Local-first by default</span><i /> <span>Evidence-linked answers</span><i /> <span>Designed for Windows 10 and 11</span>
       </section>
 
-      <section id="vision" className="vision-band">
+      <MotionReveal><section id="vision" className="vision-band">
         <div data-reveal><p className="eyebrow">A DIFFERENT KIND OF COMPUTER HISTORY</p><h2>Your work is more than<br />the apps you had <em>open.</em></h2></div>
         <p data-reveal>Recall preserves the sequence around your work: the research that led to code, the tab that clarified the bug, and the evidence that makes a memory trustworthy.</p>
-      </section>
+      </section></MotionReveal>
 
-      <ProductShowcase />
+      <MotionReveal><ProductShowcase /></MotionReveal>
 
       <section id="architecture" className="architecture-section section-wrap">
         <div className="section-heading narrow" data-reveal><p className="eyebrow">THE RECALL LOOP</p><h2>From a permitted moment to a <em>useful memory.</em></h2></div>
@@ -41,19 +39,19 @@ export default function Page() {
         </div>
       </section>
 
-      <section id="privacy" className="privacy-section">
+      <MotionReveal><section id="privacy" className="privacy-section">
         <div className="section-wrap privacy-grid">
           <div data-reveal><p className="eyebrow">PRIVACY IS THE INTERFACE</p><h2>Your computer should remember <em>less</em> by default.</h2><p>Memory is only useful when it remains under the person&apos;s control. Recall makes capture, exclusions and deletion part of the experience, not a hidden setting.</p></div>
           <div className="privacy-orbit" aria-hidden="true" data-drift><div className="orbit-core"><span>your<br />memory</span></div><i className="privacy-chip chip-one">pause</i><i className="privacy-chip chip-two">exclude</i><i className="privacy-chip chip-three">delete</i></div>
         </div>
         <div className="privacy-principles section-wrap">{privacyPrinciples.map(([number, title, body]) => <article key={number} data-reveal><span>{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div>
-      </section>
+      </section></MotionReveal>
 
       <section id="faq" className="faq-section section-wrap">
         <div data-reveal><p className="eyebrow">QUESTIONS, ANSWERED</p><h2>Start with the memory layer.</h2></div>
         <div className="faq-list" data-reveal>{questions.map(([question, answer]) => <details key={question}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}</div>
       </section>
-    </ScrollMotion>
+    </>
     <section id="download" className="cta-section">
       <div className="cta-sun" aria-hidden="true" />
       <p className="eyebrow">WINDOWS 10 / 11 PREVIEW</p><h2>Give your computer<br />a way <em>back.</em></h2><p>Build from source today. The signed Windows installer is the next packaging milestone.</p>

@@ -5,8 +5,8 @@ test("renders the Recall memory narrative without client errors", async ({ page 
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
   await page.goto("/");
   await expect(page).toHaveTitle(/Recall/);
-  await expect(page.getByRole("heading", { name: /Your computer can keep the thread/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Get the Windows preview/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /The context behind your work, kept/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Download for Windows/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /See the thread. Then follow it/i })).toBeVisible();
   expect(await page.evaluate(() => document.body.scrollWidth <= window.innerWidth)).toBeTruthy();
   expect(consoleErrors).toEqual([]);

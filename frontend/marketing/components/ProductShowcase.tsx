@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { springs } from "../lib/motion-tokens";
 
 type ViewKey = "Timeline" | "Brief" | "Ask";
 
@@ -31,6 +33,7 @@ const eventRows = [
 
 export function ProductShowcase() {
   const [active, setActive] = useState<ViewKey>("Timeline");
+  const reduce = useReducedMotion();
   const detail = views[active];
 
   return (
@@ -54,13 +57,15 @@ export function ProductShowcase() {
         </div>
         <div className={`recall-window view-${active.toLowerCase()}`} aria-label={`${active} product preview`}>
           <div className="window-top"><span className="traffic"><i /><i /><i /></span><span>Recall / Thursday</span><span className="capture-dot">capture on</span></div>
-          {active === "Timeline" && <div className="timeline-preview">
+          <AnimatePresence mode="wait">
+          {active === "Timeline" && <motion.div key="timeline" className="timeline-preview" initial={{ opacity: 1 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -8 }} transition={springs.gentle}>
             <div className="timeline-title"><div><b>Today, Oct 02</b><small>23 evidence items &middot; 3 connected sessions</small></div><span>Filter</span></div>
             <div className="timeline-track">{eventRows.map(([time, app, title, kind]) => <article key={time}><time>{time}</time><i className={`event-dot ${kind}`} /><div><span>{app}</span><b>{title}</b></div><em>{kind}</em></article>)}</div>
             <div className="evidence-drawer"><span>10:08 - 10:47</span><b>Retrieval implementation</b><p>VS Code, Terminal and Qdrant docs were connected by time, project and visual context.</p></div>
-          </div>}
-          {active === "Brief" && <div className="brief-preview"><p>THURSDAY BRIEF</p><h4>You built the evidence retrieval path.</h4><div className="brief-grid"><article><b>Primary thread</b><span>Recall Edge</span></article><article><b>Focus window</b><span>65 min</span></article><article><b>Sources</b><span>23 events</span></article></div><div className="brief-note"><i /> You moved from Qdrant research to implementing and verifying semantic retrieval.</div></div>}
-          {active === "Ask" && <div className="ask-preview"><div className="ask-query">What did I do after opening VS Code?</div><article><span>ANSWER, GROUNDED IN 12 EVENTS</span><b>You implemented evidence retrieval, ran tests, then reviewed the issue context in Chrome.</b><p><i /> Editor &middot; 10:08 <i /> Terminal &middot; 10:31 <i /> Browser &middot; 10:47</p></article><button>Open evidence <span>&rarr;</span></button></div>}
+          </motion.div>}
+          {active === "Brief" && <motion.div key="brief" className="brief-preview" initial={{ opacity: 1 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -8 }} transition={springs.gentle}><p>THURSDAY BRIEF</p><h4>You built the evidence retrieval path.</h4><div className="brief-grid"><article><b>Primary thread</b><span>Recall Edge</span></article><article><b>Focus window</b><span>65 min</span></article><article><b>Sources</b><span>23 events</span></article></div><div className="brief-note"><i /> You moved from Qdrant research to implementing and verifying semantic retrieval.</div></motion.div>}
+          {active === "Ask" && <motion.div key="ask" className="ask-preview" initial={{ opacity: 1 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -8 }} transition={springs.gentle}><div className="ask-query">What did I do after opening VS Code?</div><article><span>ANSWER, GROUNDED IN 12 EVENTS</span><b>You implemented evidence retrieval, ran tests, then reviewed the issue context in Chrome.</b><p><i /> Editor &middot; 10:08 <i /> Terminal &middot; 10:31 <i /> Browser &middot; 10:47</p></article><button>Open evidence <span>&rarr;</span></button></motion.div>}
+          </AnimatePresence>
         </div>
       </div>
     </section>

@@ -1,46 +1,27 @@
 "use client";
 
-import { Draggable } from "gsap/Draggable";
-import { gsap } from "gsap";
-import { useLayoutEffect, useRef } from "react";
-import { MemoryScene } from "./MemoryScene";
+import { MotionButton } from "./MotionReveal";
 
-const fragments = [
-  { className: "fragment-a", mark: "⌘", title: "context", body: "stays connected" },
-  { className: "fragment-b", mark: "◌", title: "local-first", body: "kept with you" },
-  { className: "fragment-c", mark: "↗", title: "open the source", body: "not a guess" },
+const moments = [
+  ["09:42", "Research", "Qdrant documentation", "research"],
+  ["10:08", "VS Code", "Evidence retrieval path", "build"],
+  ["10:31", "Terminal", "Verified the retrieval test", "verify"],
+  ["10:47", "Browser", "GitHub issue context", "review"],
 ];
 
 export function Hero() {
-  const root = useRef<HTMLElement>(null);
-
-  useLayoutEffect(() => {
-    if (!root.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    gsap.registerPlugin(Draggable);
-    const context = gsap.context(() => {
-      gsap.utils.toArray<HTMLElement>(".hero-fragment").forEach((element, index) => {
-        gsap.to(element, { y: index % 2 ? -12 : 12, rotation: index % 2 ? -1.8 : 1.8, duration: 3.6 + index * 0.35, ease: "sine.inOut", repeat: -1, yoyo: true });
-        Draggable.create(element, { type: "x,y", bounds: root.current, inertia: false });
-      });
-      gsap.from(".hero-reveal", { y: 22, opacity: 0, stagger: 0.11, duration: 0.82, ease: "power3.out" });
-    }, root);
-    return () => context.revert();
-  }, []);
-
-  return <section ref={root} id="top" className="hero-shell">
-    <MemoryScene />
-    <div className="hero-sun" aria-hidden="true" />
-    {fragments.map((fragment) => <div className={`hero-fragment ${fragment.className}`} key={fragment.title}><span>{fragment.mark}</span><b>{fragment.title}</b><small>{fragment.body}</small></div>)}
+  return <section id="top" className="hero-shell">
+    <div className="hero-noise" aria-hidden="true" />
     <div className="hero-head">
-      <p className="hero-reveal eyebrow hero-eyebrow"><i /> A MEMORY LAYER FOR YOUR COMPUTER</p>
-      <h1 className="hero-reveal">Your computer can keep the <em>thread.</em></h1>
-      <p className="hero-reveal hero-copy">Recall turns the context you choose to keep into an evidence-linked memory of what you did, saw, and worked on.</p>
-      <div className="hero-reveal hero-actions"><a className="pill-primary" href="#download">Get the Windows preview <span>&darr;</span></a><a className="pill-secondary" href="#product">Explore the memory layer <span>&rarr;</span></a></div>
-      <p className="hero-reveal hero-note">Open source &middot; local-first &middot; evidence-grounded</p>
+      <p className="hero-kicker"><i /> RECALL / PERSONAL COMPUTER MEMORY</p>
+      <h1>The context behind your work, <em>kept.</em></h1>
+      <p className="hero-copy">Recall is a local-first memory layer for your computer. It connects permitted activity into an evidence-backed timeline you can search, revisit, and control.</p>
+      <div className="hero-actions"><MotionButton className="pill-primary" href="#download">Download for Windows <span>&darr;</span></MotionButton><MotionButton className="hero-source" href="https://github.com/chotushikari/recall-edge">View source <span>&nearr;</span></MotionButton></div>
     </div>
-    <div className="hero-window hero-reveal" aria-label="Recall timeline preview">
-      <div className="hero-window-bar"><span><i /><i /><i /></span><b>Recall timeline</b><em>today</em></div>
-      <div className="hero-window-body"><div className="hero-window-title"><span>Thursday, Oct 02</span><b>From research to retrieval</b></div><div className="hero-events"><p><time>09:42</time><i className="coral" /><span>Chrome</span><b>Qdrant documentation</b></p><p><time>10:08</time><i className="violet" /><span>VS Code</span><b>Evidence retrieval path</b></p><p><time>10:31</time><i className="blue" /><span>Terminal</span><b>Verified with pytest</b></p></div><article><span>ASK RECALL</span><b>What did I do after opening VS Code?</b><small>12 connected events &rarr;</small></article></div>
+    <div className="hero-window" aria-label="Recall timeline preview">
+      <div className="hero-window-bar"><div className="brand-mini"><span>r</span> recall</div><b>Thursday, October 02</b><em><i /> capture on</em></div>
+      <div className="hero-window-body"><aside><p>MEMORY</p><b>Today</b><span>Sessions</span><span>Search</span><span>Settings</span><small>Local-only</small></aside><div className="hero-timeline"><header><div><span>YOUR DAY</span><h2>From research to retrieval</h2></div><button>Filter <span>&#8964;</span></button></header><div className="time-grid">{moments.map(([time, app, title, kind]) => <article key={time}><time>{time}</time><i className={kind} /><div><span>{app}</span><b>{title}</b></div><em>{kind}</em></article>)}</div><div className="hero-answer"><span>ASK RECALL</span><b>What did I do after opening VS Code?</b><p>12 linked events &middot; Open evidence <strong>&rarr;</strong></p></div></div></div>
     </div>
+    <p className="hero-footnote">Open source &middot; local-first &middot; evidence-grounded</p>
   </section>;
 }
