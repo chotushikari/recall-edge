@@ -13,6 +13,7 @@ export function Hero() {
   const root = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     if (!root.current || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    gsap.registerPlugin(Draggable);
     const context = gsap.context(() => {
       gsap.utils.toArray<HTMLElement>(".float-fragment").forEach((element, index) => {
         gsap.to(element, { y: index % 2 ? -16 : 16, rotation: index % 2 ? 2 : -2, duration: 3.4 + index * .4, ease: "sine.inOut", repeat: -1, yoyo: true });
