@@ -14,6 +14,8 @@ test("renders the Recall memory narrative without client errors", async ({ page 
 
 test("switches the product preview and keeps navigation targets available", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: /10:31 Terminal Verified the retrieval test/i }).click();
+  await expect(page.getByText("A matching evidence chain passed for the recorded session.")).toBeVisible();
   await page.getByRole("tab", { name: "Ask" }).click();
   await expect(page.getByText("ANSWER, GROUNDED IN 12 EVENTS")).toBeVisible();
   await expect(page.locator("#privacy")).toBeAttached();
