@@ -2,10 +2,10 @@
 
 ## One-line pitch
 
-Recall is a private, local-first computer memory for Windows: it turns
-permitted activity into an inspectable timeline, daily recap, weekly review,
-and searchable evidence so people can reliably recover the context behind
-their work.
+Recall is a private, local-first computer memory for Windows, powered by a
+**Qdrant Edge semantic-memory layer**: it turns permitted activity into an
+inspectable timeline, daily recap, weekly review, and searchable evidence so
+people can reliably recover the context behind their work.
 
 ## The problem
 
@@ -16,8 +16,8 @@ local evidence to work from.
 
 ## What we built
 
-Recall combines a Windows desktop host with a local API and a calm work-journal
-interface. The demo includes:
+Recall combines a Windows desktop host with a local API, a Qdrant Edge semantic
+index, and a calm work-journal interface. The demo includes:
 
 1. **Home** — pick up where you left off, ask a question, or enter the timeline.
 2. **Timeline** — sessions reconstructed from local events, with app/window
@@ -47,6 +47,30 @@ interface. The demo includes:
    frames stay local by default. The user controls retention and can delete all
    local evidence.”
 
+## Qdrant Edge: the technical focus
+
+Qdrant Edge is the local semantic-memory engine inside Recall. It is not a
+cloud dependency and it is not the source of truth. It indexes *derived,
+searchable memory* on the same Windows device so Recall can retrieve a useful
+moment from meaning-based clues such as “the Qdrant research I read after
+opening VS Code.”
+
+This gives Recall three important properties:
+
+1. **Meaning-based retrieval without a cloud round trip.** A person can search
+   by what they remember, not only an exact filename, app, or timestamp.
+2. **Evidence stays auditable.** Qdrant retrieves candidate memories, then
+   Recall routes the person to the underlying SQLite evidence: timestamps,
+   app/window context, and optional permitted frames.
+3. **A safe sync boundary.** Raw activity and screenshots remain local. Only
+   explicitly eligible derived memory can ever be queued for optional sync.
+
+The key judge sentence is:
+
+> “Qdrant Edge gives us local semantic recall, while SQLite preserves the
+> evidence that proves what happened. Retrieval finds the moment; evidence
+> makes the answer trustworthy.”
+
 ## Architecture in plain language
 
 ```text
@@ -54,7 +78,7 @@ Permitted Windows context
         ↓
 Local evidence ledger (events / optional frames)
         ↓
-Session reconstruction + local semantic index
+Session reconstruction + Qdrant Edge semantic index
         ↓
 Timeline, digest, review, and evidence-grounded search
 ```
@@ -62,8 +86,8 @@ Timeline, digest, review, and evidence-grounded search
 - **Desktop:** native Windows WebView host (`Recall.exe`).
 - **Backend:** local FastAPI runtime on loopback only.
 - **Evidence:** local SQLite records for events and frames.
-- **Memory:** local Qdrant semantic index; it is derived from evidence, not a
-  replacement for it.
+- **Memory:** Qdrant Edge local semantic index. It ranks meaning-based matches
+  from derived memories; it is never a replacement for the source evidence.
 - **UI:** Next.js dashboard packaged with the desktop runtime.
 
 ## Differentiation
@@ -97,6 +121,6 @@ sessions and keeps source records available for inspection.
 source project. We learned from privacy-first retrieval patterns, but built our
 own product, interface, and architecture.
 
-**What makes the AI trustworthy?**  The system treats semantic memory as an
-index. It keeps evidence records as the source of truth and routes people back
-to those records.
+**What makes the AI trustworthy?**  Qdrant Edge provides fast local semantic
+retrieval, but SQLite evidence remains the source of truth. Recall routes a
+person from a meaning-based match back to the records that support it.
