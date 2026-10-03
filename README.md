@@ -94,7 +94,7 @@ all-seeing personal agent.
 | opt-in foreground application and window-title capture on Windows | OCR and rich visual understanding |
 | explicitly confirmed primary-monitor screenshots, change detection, local frame storage and app/window exclusions | browser URL/tab permission flow, clipboard, file activity, input/AFK, and audio |
 | normalized local SQLite evidence ledger, FTS5 frame support, retention pruning, and a confirmed full local wipe | full hybrid retrieval and grounded AI-generated answers |
-| local Qdrant semantic memory index, offline search, version history, and privacy-gated optional cloud-sync outbox | packaged native desktop shell, full settings, export, and per-range deletion UX |
+| local Qdrant semantic memory index, offline search, version history, privacy-gated optional cloud-sync outbox, and a portable native Windows desktop shell | full settings, export, per-range deletion UX, and a code-signed installer |
 | local API, dashboard, selected-session evidence inspector, and deterministic session reconstruction | cross-platform capture adapters |
 
 The roadmap diagrams deliberately mark planned capabilities rather than
@@ -119,15 +119,16 @@ raw activity for cloud upload.
 
 ## Windows preview
 
-Recall currently targets Windows 10/11 as the first capture runtime. The
-preview is source-based; it is **not yet a signed native `.exe` installer**.
+Recall currently targets Windows 10/11 as the first capture runtime. A
+portable native `Recall.exe` build is available for demos; it is not yet a
+code-signed installer.
 
 ```powershell
-python scripts/launch_recall_edge.py
+powershell -ExecutionPolicy Bypass -File scripts/build_windows_app.ps1
 ```
 
-For the downloadable source-preview workflow and requirements, see
-[Recall Desktop Preview for Windows](docs/windows-desktop.md). For development:
+For the portable-app workflow and requirements, see
+[Recall for Windows](docs/windows-desktop.md). For development:
 
 ```powershell
 python -m pip install -e .

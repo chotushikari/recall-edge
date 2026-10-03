@@ -1,30 +1,46 @@
-# Recall Desktop Preview for Windows
+# Recall for Windows
 
-Recall runs as a local runtime on Windows 10/11. It starts a local API and the
-dashboard, then opens the dashboard in Edge app mode when Microsoft Edge is
-available. Your permitted activity stays on the device.
+Recall is a local-first Windows app for inspecting computer memories through a
+timeline, daily digest, search, and local Q&A. It starts a loopback-only local
+API and opens the dashboard in a native WebView2 window. Your data remains on
+the device.
 
-## Run from a downloaded source bundle
+## Run the demo build
 
-1. Download and extract `Recall-Desktop-Preview.zip`.
-2. Install Python 3.11+ and Node.js 20+.
-3. Double-click `scripts\start_recall_windows.cmd`.
-4. On the first run, the launcher installs local Python and dashboard
-   dependencies, then opens Recall.
+1. Open `Recall.exe` from the supplied `Recall-Windows-<version>` folder.
+2. If Windows SmartScreen appears, choose **More info** and then **Run anyway**
+   only after confirming that you received the folder from a trusted source.
+3. Use the Timeline, Search, Daily Digest, and Ask Recall views to explore the
+   bundled demo data.
 
-The launcher does not enable activity or visual capture. Capture remains off
-until the user explicitly starts it in the dashboard.
+The demo opens with background capture and cloud sync disabled. It does not
+silently record activity. Recall stores its local app data in
+`%LOCALAPPDATA%\Recall`.
 
-## Create a preview bundle
+## Build the Windows app
 
-From a checked-out repository, run:
+From a checked-out repository with Python, Node.js, and the project
+dependencies installed:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\package_windows_preview.ps1
+powershell -ExecutionPolicy Bypass -File scripts\build_windows_app.ps1 `
+  -Version 0.1.0 -Publisher Piyush_codex
 ```
 
-This creates `dist\Recall-Desktop-Preview.zip` from tracked source files. It
-is a portable preview bundle, not a signed native `.exe` installer. Building a
-signed installer is the next desktop-distribution milestone; it requires a
-native shell and Windows code-signing process, neither of which should be
-faked for a download page.
+The build produces a portable release folder:
+
+```text
+dist\Recall-Windows-0.1.0\Recall.exe
+```
+
+This is an unsigned portable Windows app, not an MSI installer. A production
+release should be code-signed before broad distribution so users do not need to
+override SmartScreen warnings.
+
+## Source preview
+
+For development, use the source launcher instead:
+
+```powershell
+python scripts\launch_recall_edge.py
+```

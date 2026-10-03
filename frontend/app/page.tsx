@@ -58,6 +58,7 @@ type DailySummary = {
   focus_minutes: number;
 };
 type HeatmapDay = { date: string; count: number };
+type WorkspaceView = "home" | "timeline" | "daily" | "weekly" | "privacy";
 
 const api = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
@@ -105,6 +106,7 @@ function appTone(app: string) {
 }
 
 export default function Home() {
+  const [activeView, setActiveView] = useState<WorkspaceView>("home");
   const [range, setRange] = useState<Range>("today");
   const [node, setNode] = useState<NodeState | null>(null);
   const [activity, setActivity] = useState<CaptureState | null>(null);
@@ -452,7 +454,7 @@ export default function Home() {
     window.setTimeout(() => searchInput.current?.focus(), 0);
   }
   return (
-    <main className="workspace-shell immersive-workspace">
+    <main className={`workspace-shell immersive-workspace view-${activeView}`}>
       <ProductCursor />
       <ImmersiveProductScene />
       <aside className="app-sidebar" aria-label="Recall navigation">
@@ -461,20 +463,29 @@ export default function Home() {
           <span>recall</span>
         </div>
         <nav className="sidebar-nav" aria-label="Memory views">
-          <span className="nav-item active">
-            <span>◈</span> Memory
-          </span>
-          <span className="nav-item">
-            <span>◌</span> Discover <small>soon</small>
-          </span>
+          <button className={activeView === "home" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("home")}>
+            <span>◈</span> Home
+          </button>
+          <button className={activeView === "timeline" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("timeline")}>
+            <span>◌</span> Timeline
+          </button>
+          <button className={activeView === "daily" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("daily")}>
+            <span>☼</span> Daily
+          </button>
+          <button className={activeView === "weekly" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("weekly")}>
+            <span>▦</span> Weekly
+          </button>
           <button
             className={
-              showPrivacyControls
+              activeView === "privacy"
                 ? "nav-item active privacy-nav"
                 : "nav-item privacy-nav"
             }
-            onClick={() => setShowPrivacyControls((open) => !open)}
-            aria-expanded={showPrivacyControls}
+            onClick={() => {
+              setActiveView("privacy");
+              setShowPrivacyControls(true);
+            }}
+            aria-current={activeView === "privacy" ? "page" : undefined}
           >
             <span>⌁</span> Privacy
           </button>
@@ -517,6 +528,25 @@ export default function Home() {
             </button>
           </div>
         </header>
+        {activeView !== "timeline" && (
+          <WorkspaceViewPanel
+            view={activeView}
+            dailySummary={dailySummary}
+            heatmap={heatmap}
+            sessions={sessions}
+            activity={activity}
+            visual={visual}
+            onOpenTimeline={() => setActiveView("timeline")}
+            onOpenAsk={() => {
+              setActiveView("timeline");
+              window.setTimeout(() => searchInput.current?.focus(), 0);
+            }}
+            onOpenPrivacy={() => {
+              setActiveView("privacy");
+              setShowPrivacyControls(true);
+            }}
+          />
+        )}
         {showQuickAdd && (
           <div className="quick-add-backdrop" role="presentation">
             <form
@@ -1113,6 +1143,40 @@ export default function Home() {
       </section>
     </main>
   );
+}
+
+function WorkspaceViewPanel({
+  view,
+  dailySummary,
+  heatmap,
+  sessions,
+  activity,
+  visual,
+  onOpenTimeline,
+  onOpenAsk,
+  onOpenPrivacy,
+}: {
+  view: Exclude<WorkspaceView, "timeline">;
+  dailySummary: DailySummary | null;
+  heatmap: HeatmapDay[];
+  sessions: Session[];
+  activity: CaptureState | null;
+  visual: CaptureState | null;
+  onOpenTimeline: () => void;
+  onOpenAsk: () => void;
+  onOpenPrivacy: () => void;
+}) {
+  const totalMoments = heatmap.reduce((sum, item) => sum + item.count, 0);
+  if (view === "privacy") {
+    return <section className="workspace-view-panel privacy-view"><p className="section-kicker">PRIVACY & DATA</p><h1>Your computer memory stays yours.</h1><p className="view-intro">Capture is explicit, raw evidence stays on this PC, and you can pause, filter, retain, or delete it at any time.</p><div className="privacy-promise-grid"><article><b>{activity?.capturing ? "On" : "Off"}</b><span>Context capture</span></article><article><b>{visual?.capturing ? "On" : "Off"}</b><span>Visual capture</span></article><article><b>Local</b><span>Evidence storage</span></article></div><button className="view-primary" onClick={onOpenTimeline}>Manage capture & local data</button></section>;
+  }
+  if (view === "daily") {
+    return <section className="workspace-view-panel"><p className="section-kicker">DAILY STANDUP</p><h1>Make today easy to explain.</h1><p className="view-intro">A grounded recap of the work Recall has locally indexed—not a guessed productivity score.</p><div className="standup-grid"><article><small>LOCAL DIGEST</small><p>{dailySummary?.summary ?? "Your local digest will appear after you choose to capture context."}</p></article><article><small>FOCUS</small><b>{dailySummary?.focus_minutes ?? 0} min</b><p>of recorded focus</p></article><article><small>TOP APPS</small><p>{dailySummary?.top_apps?.slice(0,3).map((app) => `${app.name} · ${app.minutes}m`).join("\n") || "No activity recorded yet."}</p></article></div><button className="view-primary" onClick={onOpenTimeline}>Review source timeline</button></section>;
+  }
+  if (view === "weekly") {
+    return <section className="workspace-view-panel"><p className="section-kicker">WEEKLY REVIEW</p><h1>See the rhythm behind your work.</h1><p className="view-intro">A calm review of recent local moments. Focus trends and distraction labels will be added as explicit, editable insights.</p><div className="week-rhythm">{heatmap.map((item) => <span key={item.date} className={`week-cell level-${Math.min(item.count,4)}`} title={`${item.date}: ${item.count} memories`} />)}</div><div className="review-stats"><article><b>{totalMoments}</b><span>recent memories</span></article><article><b>{sessions.length}</b><span>sessions in view</span></article><article><b>Local</b><span>review source</span></article></div><button className="view-primary" onClick={onOpenAsk}>Ask about this week</button></section>;
+  }
+  return <section className="workspace-view-panel home-view"><p className="section-kicker">GOOD AFTERNOON</p><h1>Pick up where you left off.</h1><p className="view-intro">Find a moment, review the day, or ask Recall about work that is already stored locally.</p><div className="home-actions"><button onClick={onOpenAsk}><span>⌕</span><b>Ask Recall</b><small>Search your local work memory</small></button><button onClick={onOpenTimeline}><span>◌</span><b>Open timeline</b><small>{sessions.length} sessions available to review</small></button><button onClick={onOpenPrivacy}><span>⌁</span><b>Privacy controls</b><small>Capture, retention, and deletion</small></button></div></section>;
 }
 
 function GuideFace() {

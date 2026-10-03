@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from typing import Any
 from uuid import UUID
 
@@ -31,6 +32,8 @@ def _fallback_embedding(text: str) -> list[float]:
 
 def _embed(text: str) -> list[float]:
     global _embedding_model
+    if os.environ.get("RECALL_EMBEDDING_MODE", "model").lower() == "fallback":
+        return _fallback_embedding(text)
     try:
         if _embedding_model is None:
             from fastembed import TextEmbedding

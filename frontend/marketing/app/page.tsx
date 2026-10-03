@@ -22,12 +22,12 @@ export default function Page() {
     <Hero />
     <>
       <section className="proof-strip" aria-label="Recall product principles">
-        <span>Local-first by default</span><i /> <span>Evidence-linked answers</span><i /> <span>Designed for Windows 10 and 11</span>
+        <span>Private by default</span><i /> <span>Built for your workday</span><i /> <span>Windows 10 &amp; 11</span>
       </section>
 
       <MotionReveal><section id="vision" className="vision-band">
-        <div data-reveal><p className="eyebrow">A DIFFERENT KIND OF COMPUTER HISTORY</p><h2>Your work is more than<br />the apps you had <em>open.</em></h2></div>
-        <p data-reveal>Recall preserves the sequence around your work: the research that led to code, the tab that clarified the bug, and the evidence that makes a memory trustworthy.</p>
+        <div data-reveal><p className="eyebrow">YOUR OPEN-SOURCE WORK COMPANION</p><h2>Remember the work,<br />not just the <em>apps.</em></h2></div>
+        <p data-reveal>Recall preserves the thread around your work: research that led to code, the tab that clarified a bug, and the evidence that makes every memory trustworthy.</p>
       </section></MotionReveal>
 
       <MotionReveal><ProductShowcase /></MotionReveal>
@@ -54,8 +54,9 @@ export default function Page() {
     </>
     <section id="download" className="cta-section">
       <div className="cta-sun" aria-hidden="true" />
-      <p className="eyebrow">WINDOWS 10 / 11 PREVIEW</p><h2>Give your computer<br />a way <em>back.</em></h2><p>Build from source today. The signed Windows installer is the next packaging milestone.</p>
-      <div className="cta-actions"><a className="pill-primary" href="https://github.com/chotushikari/recall-edge/archive/refs/heads/main.zip">Download preview <span>&darr;</span></a><a className="text-link light" href="https://github.com/chotushikari/recall-edge">View the source <span>&nearr;</span></a></div>
+      <p className="eyebrow">WINDOWS 10 / 11 PREVIEW</p><h2>Try Recall<br /><em>today.</em></h2><p>The demo is real: capture, local timeline, evidence inspector, and search. Download the source preview to run it on your own Windows machine.</p>
+      <div className="cta-actions"><a className="pill-primary" href="https://github.com/chotushikari/recall-edge/archive/refs/heads/main.zip">Download Windows preview (.zip) <span>&darr;</span></a><a className="text-link light" href="https://github.com/chotushikari/recall-edge">View the source <span>&nearr;</span></a></div>
+      <p className="download-note">A signed .exe is not published yet. After extracting the download, run <code>scripts\start_recall_windows.cmd</code>.</p>
     </section>
     <footer><a href="#top" className="footer-brand"><span>r</span> recall</a><span>Independent open-source computer memory research.</span><span>Local-first &middot; Evidence-grounded &middot; Privacy-controlled</span></footer>
   </main>;

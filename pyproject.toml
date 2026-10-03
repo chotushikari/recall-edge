@@ -32,6 +32,7 @@ dependencies = [
     "fastembed>=0.3",
     "aiosqlite>=0.20",
     "python-dotenv>=1.0",
+    "pywebview>=6.2",
     "tomli>=2.0; python_version < '3.11'",
 ]
 
